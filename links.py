@@ -6,20 +6,8 @@ import urlparse
 import mechanize
 from bs4 import BeautifulSoup, SoupStrainer
 
-def obtener_scripts_desde_htmlaaa(html):
-    re_test = re.compile('<a href="([^"]+)"', re.S)
-    # regular expressions from https://code.google.com/p/domxsswiki/wiki/FindingDOMXSS
-    re_domxss_sources = re.compile('(location\s*[\[.])|([.\[]\s*["\']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)')
-    re_domxss_sinks = re.compile('((src|href|data|location|code|value|action)\s*["\'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["\'\]]*\s*\()')
-    
-    script_urls = []
-    scripts = BeautifulSoup(html, parseOnlyThese=SoupStrainer('script'))
-    for tag in scripts:
-        if tag.has_key('src'):
-            script_urls.append(self.get_absolute_url(url, tag['src']))
-    return script_urls
 
-def obtener_scripts_desde_url(url, cookies=None, link_a_archivo, link_a_dominio_o_subdominio):
+def obtener_scripts_desde_url(url, esquema, link_a_archivo, link_a_dominio_o_subdominio, cookies=None):
     br = mechanize.Browser()
     _configurar_navegador(br)
     if not abrir_url_en_navegador(br, url ,cookies):
@@ -27,8 +15,6 @@ def obtener_scripts_desde_url(url, cookies=None, link_a_archivo, link_a_dominio_
         if cookies is not None:
             print "Revise las cookies.", cookies
         return list()
-
-
     html = br.response().read()
     bs = BeautifulSoup(html, 'lxml')
     scripts = set()
@@ -36,23 +22,25 @@ def obtener_scripts_desde_url(url, cookies=None, link_a_archivo, link_a_dominio_
         texto = script.getText()
         #print texto
         if texto != '':
-            print texto
+            #print texto.encode("utf-8") #TODO enconde para todos los archivos
             scripts.add(texto)
         else:
             if script.has_attr('src'):
                 if link_a_archivo.match(script['src']) is not None:
                     link_script = urlparse.urljoin(url, script['src'])
-                    print link_script
+                    #print link_script
+                    script_js =  urllib2.urlopen(link_script).read()
+                    scripts.add(script_js)
                 else:
                     if link_a_dominio_o_subdominio.match(script['src']) is not None:
                         #print 'Mismo dominio o subdominio: ', link.url
                         link_script = script['src']
                         if link_script[0] == '/' and link_script[1] == '/':
                             link_script.replace('//', esquema + '://')
-                        print link_script
-                    script_js =  urllib2.urlopen(link_script)
-                    scripts.add(script_js)
-        os.system('pause')
+                        #print link_script
+                        script_js =  urllib2.urlopen(link_script).read()
+                        scripts.add(script_js)
+        #os.system('pause')
     return list(scripts)
 
 def _configurar_navegador(browser):
@@ -125,7 +113,7 @@ def obtener_links_validos_desde_url(url, cookies=None):
     #   br.set_cookie(cookie)
     scripts = set()
     url_parseado = urlparse.urlparse(url)
-
+    url_y_scripts = dict()
     regex_link_a_archivo = '(?!^//)[A-Za-z0-9_\-//]*\.\w*'  #TODO ver lo de r'
     regex_mismo_dominio_o_subdominio =  r'.*\b' + url_parseado.hostname.replace('www.','.?') + r'\b(?!\.)' # OK? Lo del igual es para evitar un x.com/?a=y.com y aggara el ultimo
     regex_link_a_carpeta = '(?!^//)[A-Za-z0-9_\-//]*/[A-Za-z0-9_\-\.//]*'
@@ -138,8 +126,8 @@ def obtener_links_validos_desde_url(url, cookies=None):
         if cookies is not None:
             print "Revise las cookies."
         return list()
-    obtener_scripts_desde_html(html, url, url_parseado.scheme, link_a_archivo, link_a_dominio_o_subdominio)
-    os.system('pause')  
+    #obtener_scripts_desde_html(html, url, url_parseado.scheme, link_a_archivo, link_a_dominio_o_subdominio)
+    #os.system('pause')  
     links_validos = set()
     links_validos.add(url)
     for link in br.links():
@@ -148,7 +136,9 @@ def obtener_links_validos_desde_url(url, cookies=None):
             link_valido = urlparse.urljoin(url, link.url)
             if es_url_valida(link_valido):
             #print link_valido
-                links_validos.add(link_valido)
+                #links_validos.add(link_valido)
+                if link_valido not in url_y_scripts: #TODO no es necesario, pero por si falla lo anterior
+                    url_y_scripts[link_valido] = obtener_scripts_desde_url(link_valido, url_parseado.scheme, link_a_archivo, link_a_dominio_o_subdominio)
         else:
             if link_a_dominio_o_subdominio.match(link.url) is not None:
                 #print 'Mismo dominio o subdominio: ', link.url
@@ -156,12 +146,20 @@ def obtener_links_validos_desde_url(url, cookies=None):
                 if link_valido[0] == '/' and link_valido[1] == '/':
                     link_valido.replace('//', url_parseado.scheme + '://') # TODO test 
                 if es_url_valida(link_valido):
-                    links_validos.add(link_valido)
-
-    lista_links_validos = list(links_validos)
-    lista_links_validos.sort()
+                    #links_validos.add(link_valido)
+                    if link_valido not in url_y_scripts:
+                        url_y_scripts[link_valido] = obtener_scripts_desde_url(link_valido, url_parseado.scheme, link_a_archivo, link_a_dominio_o_subdominio)
+    #print url_y_scripts
+    #lista_links_validos = list(links_validos)
+    #lista_links_validos.sort()
     #print lista_links_validos
-    return lista_links_validos
+    #for link in url_y_scripts:
+    #    print link
+    #    os.system('pause')
+    #    for script in url_y_scripts[link]:
+    #        print "\t", script
+    #        os.system('pause')
+    return url_y_scripts
 
 if __name__ == '__main__':
     url = sys.argv[1]

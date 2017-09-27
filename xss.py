@@ -4,29 +4,37 @@ import time
 import links
 import mechanize
 import selenium
+import re
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoAlertPresentException
+from selenium.webdriver.common.keys import Keys
 
 blacklist = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
              '.pdf', '.doc', '.docx', '.zip', '.rar']
 
 payloads = ['<script>alert(1)</script>', '<IMG SRC=/ onerror="alert(String.fromCharCode(88,83,83))"></img>', 'javascript:alert(1)']
 
-DOM_FILTER_REGEX = r"(?s)<!--.*?-->|\bescape\([^)]+\)|\([^)]+==[^(]+\)|\"[^\"]+\"|'[^']+'"
+#DOM_FILTER_REGEX = r"(?s)<!--.*?-->|\bescape\([^)]+\)|\([^)]+==[^(]+\)|\"[^\"]+\"|'[^']+'"
 
 DOM_SOURCES_RE = re.compile("""/(location\s*[\[.])|([.\[]\s*["']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)/""")
 DOM_SINKS_RE = re.compile("""/((src|href|data|location|code|value|action)\s*["'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["'\]]*\s*\()/""")   
+#TODO singleton
 
 
-
-def detectar_xss_DOM():
+def detectar_xss_DOM(script):
+    nro_linea = 0
+    for linea in script.split('\n'):
+        nro_linea += 1
+        if DOM_SOURCES_RE.match(linea) or DOM_SINKS_RE.match(linea):
+            return nro_linea
+    return 0
 
 def detectar_xss_reflejado(br, payload):
     if payload in br.response().read(): #TODO: XSS reflejado
-        #print "XSS"
+        print "DOM XSS"
         #br.back()
         return True
     #br.back()
@@ -57,7 +65,8 @@ def detectar_xss_almacenado(driver, parametro, payload):
         return False
     except:
         return False
-    #finally:
+    finally:
+        driver.find_element_by_tag_name('body').send_keys(Keys.COMMAND + 't')
         #driver.execute_script("window.history.go(-1)")
         #return True
     
@@ -66,7 +75,7 @@ def inyectar_payload(br, payload, parametro): #NO hace falta determinar si es ge
     br.form[parametro.name] = payload
     br.submit()
 
-def buscar_vulnerabilidad_xss(url, cookies=None):
+def buscar_vulnerabilidad_xss(url, scripts, cookies=None):
     for extension in blacklist:
         if extension in url:
             return False
@@ -103,7 +112,7 @@ def buscar_vulnerabilidad_xss(url, cookies=None):
             #par = str(p)
             # submit only those forms which require text
             if 'TextControl' in str(parametro) or 'TextareaControl' in str(parametro):
-                print parametro.name, parametro.type, parametro.id
+                #print parametro.name, parametro.type, parametro.id
                 p = 0
                 encontrado = False
                 while p < len(payloads) and not encontrado:
@@ -144,10 +153,11 @@ if __name__ == '__main__':
         sys.exit("Esquema de URL invalido. Ingrese nuevamente.")
     if not links.se_puede_acceder_a_url(url):
         sys.exit("No se puede acceder a la URL. Revise la conexion o el sitio web.")
-    #urls_encontradas = links.obtener_links_validos_desde_url(sys.argv[1])
+    urls_y_scripts = links.obtener_links_validos_desde_url(sys.argv[1])
     
     #for url in urls_encontradas:
-    buscar_vulnerabilidad_xss(url)
+    for url in urls_y_scripts:
+        buscar_vulnerabilidad_xss(url, urls_y_scripts[url])
         #detectar_xss_almacenado(url)
 
 
