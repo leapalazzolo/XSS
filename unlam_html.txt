@@ -1,0 +1,165 @@
+
+
+
+
+
+
+
+
+
+
+    
+
+    
+    
+    
+    
+
+
+
+    
+    
+    
+    
+
+
+
+
+<html>
+    <head>
+
+        <title>UNLaM | Intraconsulta</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="expires" content="-1">
+        <meta http-equiv="cache-control" content="max-age=0" />
+        <meta http-equiv="cache-control" content="no-cache" />
+        <meta http-equiv="expires" content="0" />
+        <meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
+        <meta http-equiv="pragma" content="no-cache" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="UNLaM | Intraconsulta">
+        <meta name="author" content="Universidad Nacional de La Matanza">
+        
+        <link rel="shortcut icon" type="image/x-icon" href="images/icon/favicon.ico"> 
+
+        <link rel="stylesheet"    type="text/css"     href="css/jquery/jquery-ui.min.css"/>    
+        <link rel="stylesheet"    type="text/css"     href="css/bootstrap/bootstrap.min.css"/>
+        <link rel="stylesheet"    type="text/css"     href="css/bootstrap/bootstrap-theme.min.css"/>
+        <link rel="stylesheet"    type="text/css"     href="css/style.css"/>
+        <script src="https://www.google.com/recaptcha/api.js"></script>
+
+    </head>
+    <body>
+        <!--div class="alert alert-warning text-center"><strong>SITIO DE PRUEBAS</strong></div-->
+
+        
+<div class="navbar navbar-default navbar-static-top bs-docs-nav " role="navigation">
+    <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-9">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#"><img src="./images/logo_unlam_tr.gif" alt="Intraconsulta"></a>
+        </div>
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        
+        
+        
+        
+        
+        
+            
+            
+                 
+            
+            
+        
+        
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-9">
+            <ul class="nav navbar-nav pull-left">
+                <li class=""><a href="index.jsp">Inicio</a></li>
+                <li class=""><a href="http://www.unlam.edu.ar/index.php?seccion=3&amp;idArticulo=449" target="new">Calendario Academico</a></li>
+                <li class=""><a href="http://www.unlam.edu.ar/index.php?seccion=2&idArticulo=570" target="new">Aulas</a></li>
+                <li class=""><a href="index.jsp?pageLand=ayuda">Ayuda</a></li>
+            </ul>
+            <ul class="nav navbar-nav pull-right">
+                <li class="active"><a href="index.jsp?pageLand=registrarse">Registrarse</a></li>
+            </ul>            
+        </div>
+            
+            <!-- /.navbar-collapse-->   
+    </div>
+</div> 
+
+        
+            
+                
+<script src="https://www.google.com/recaptcha/api.js"></script>
+<div id="registro" class="container">
+    <div class="row">
+        
+        <div class="col-lg-4 col-md-3 col-sm-12 col-xs-12">
+        
+            <div class="page-header">
+                <h3>Registrarse<br>
+                    <small>Ingresa tu número de DNI para validar tu estado de actividad</small>
+                </h3>
+            </div>
+            
+            <form id="form_ayuda" name="form_ayuda" role="form" action="registrarse" method="POST">
+
+                <div class="form-group">
+                    
+                    <select id="tipo_docume" name="tipo_docume" size="1" class="form-control">
+                        <option value="DU" selected="">DNI</option>
+                        <option value="CI">CI</option>
+                        <option value="LC">LC</option>
+                        <option value="LE">LE</option>
+                        <option value="PS">PS</option>
+                    </select>&nbsp;  
+
+                    <input type=text id="docume" name=docume maxlength=8 value="" class="form-control">
+                    <br>
+                    <div class="g-recaptcha" data-sitekey="6Le2tSYTAAAAAIkPctI4cj7TzO1WlZR9_-lvtPui"></div>
+                    <input id="ingreso" value="Ingresar" class="btn btn-primary btn-lg" style="margin-top:4px" type="submit">
+                    
+                </div>
+               
+            </form>
+            
+        </div>
+        
+        <div class="col-lg-8 col-md-9 col-sm-12 col-xs-12">
+            <div class="jumbotron">
+                <h2>Registrate <small> para poder acceder a tus operaciones de autogestion  </small></h2>
+                <div><img src="./images/study.png" alt="registro" class="img-responsive"></div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+    <!--a href="javascript:document.form_ayuda.submit();">Consultar</a-->
+
+
+            
+            
+                      
+
+        <div class="footer">
+            <div class="container" style="background-color: ghostwhite;">
+                <p class="text-muted">© UNLaM 2015 | Todos los derechos reservados</p>
+            </div>
+        </div>
+
+        <script type="text/javascript" src="js/jquery/jquery.min.js"></script>
+        <script type="text/javascript" src="js/jquery/jquery-ui.min.js"></script>
+        <script type="text/javascript" src="js/bootstrap/bootstrap.min.js"></script>
+        <script type="text/javascript" src="js/session.js"></script>
+        <script type='text/javascript' src='js/intra_lib.js'></script>
+        <script type='text/javascript' src='js/ga.js'></script>
+    </body>
+</html>

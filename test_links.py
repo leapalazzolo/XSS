@@ -1,61 +1,107 @@
 import unittest
+import mechanize
 import links
 
 class LinksTest(unittest.TestCase):
     """Test para 'links.py'"""
 
-    def test_url_google_valida(self):
-        self.assertTrue(links.es_url_valida('http://www.google.com'))
 
-    def test_url_google_ar_valida(self):
-        self.assertTrue(links.es_url_valida('https://www.google.com.ar'))
+    def test_obtener_parametros_de_la_url(self):
+        '''
+        Test de la funcion obtener_parametros_de_la_url
+        '''
+        url_unlam = 'http://www.unlam.edu.ar/index.php'
+        url_unlam_con_parametros = 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=buscador'
+        url_google_con_parametros = 'https://www.google.com.ar/?gfe_rd=cr&dcr=0&ei=eUXWWZPVGcb_8AfYso_wAw&gws_rd=ssl'
 
-    def test_url_python_valida(self):
-        self.assertTrue(links.es_url_valida('https://python.org'))
+        self.assertEqual(links.obtener_parametros_de_la_url(url_unlam_con_parametros),
+                         {'seccion':['-1'], 'accion':['buscador']}
+                        )
+        self.assertEqual(links.obtener_parametros_de_la_url(url_unlam),
+                         {}
+                        )
+        self.assertEqual(links.obtener_parametros_de_la_url(url_google_con_parametros),
+                         {'gfe_rd':['cr'], 'dcr':['0'], 'ei':['eUXWWZPVGcb_8AfYso_wAw'], 'gws_rd':['ssl']}
+                        )
 
-    def test_url_invalida(self):
-        self.assertFalse(links.es_url_valida('alumno2.unlam.edu.ar/'))
+    def test_obtener_scripts_desde_url(self):
 
-    def test_acceder_a_url_google(self):
-        self.assertTrue(links.se_puede_acceder_a_url('http://www.google.com'))
+        url_blogger = 'https://www.blogger.com/about/?r=2'
+        dominio_blogger = 'https'
+        archivo_html_blogger = open('blogger_html.txt', 'r')
+        html_blogger = archivo_html_blogger.read()
+        archivo_scripts_blogger_1 = open('blogger_script_1.txt', 'r')
+        scripts_blogger_1 = archivo_scripts_blogger_1.read()
+        archivo_scripts_blogger_2 = open('blogger_script_2.txt', 'r')
+        scripts_blogger_2 = archivo_scripts_blogger_2.read()
+        lista_scripts_blogger = [str(scripts_blogger_1), str(scripts_blogger_2)]
+        links._compilar_regex(r'(?!^//|\bhttp\b)[A-Za-z0-9_\-//]*\.\w*', #TODO test
+                              '(?!^//|\bhttp\b)([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
+                              r'.*\b' + 'www.blogger.com'.replace('www.', r'\.?') + r'\b(?!\.)'
+                             )
+        self.assertNotEqual(links.obtener_scripts_desde_url(url_blogger, dominio_blogger, html_blogger),
+                         lista_scripts_blogger
+                        )
+    
+    def test_obtener_link_valido(self):
+        links._compilar_regex(r'(?!^//)[A-Za-z0-9_\-//]*\.\w*',
+                              '([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
+                              r'.*\b' + 'www.blogger.com'.replace('www.', '\.?') + r'\b(?!\.)'
+                              )
+        url_blogger = 'https://www.blogger.com/about/?r=2'
+        dominio_blogger = 'https'
+        link = '/go/createyourblog'
+        
+        self.assertEqual(links.obtener_link_valido(url_blogger, link, dominio_blogger),
+                         'https://www.blogger.com/go/createyourblog'
+                        )
+        self.assertEqual(links.obtener_link_valido(url_blogger, '/', dominio_blogger),
+                         'https://www.blogger.com/'
+                        )
+    def test_obtener_entradas_desde_url(self):
+        url_unlam = 'http://alumno2.unlam.edu.ar/index.jsp?pageLand=registrarse'
+        html_unlam = open('unlam_html.txt', 'r').read()
+        parametros = links.obtener_entradas_desde_url(html_unlam)
+        parametro = parametros[0][0]['id']
+        self.assertEqual(parametro,
+                        'docume'
+                        )
+    def test_es_url_prohibida(self):
 
-    def test_acceder_a_url_python(self):
-        self.assertTrue(links.se_puede_acceder_a_url('https://python.org'))
+        self.assertTrue(links._es_url_prohibida('http://example.com/asd/imagen.jpg'))
+        
+        self.assertFalse(links._es_url_prohibida('http://example.com/asd/noespng.html'))
+    
+    def test_es_url_valida(self):
 
-    def test_acceder_a_url_invalida(self):
-        self.assertFalse(links.se_puede_acceder_a_url('http://www.leandropalazzolo.org'))
+        self.assertFalse(links.es_url_valida('python.org'))
+    
+        self.assertTrue(links.es_url_valida('https://www.python.org'))    
 
-    def obtner_links_validos_desde_docs_python(self): #Revisar este que anda mal
-        self.assertEqual(
-            links.obtener_links_validos_desde_url('http://docs.python.org'),
-                                                ['http://docs.python.org', 'http://docs.python.org/about.html', 'http://docs.pyt\
-                                                hon.org/bugs.html', 'http://docs.python.org/c-api/index.html', 'http://docs.pyth\
-                                                on.org/contents.html', 'http://docs.python.org/copyright.html', 'http://docs.pyt\
-                                                hon.org/distributing/index.html', 'http://docs.python.org/download.html', 'http:\
-                                                //docs.python.org/extending/index.html', 'http://docs.python.org/faq/index.html'
-                                                , 'http://docs.python.org/genindex.html', 'http://docs.python.org/glossary.html'
-                                                , 'http://docs.python.org/howto/index.html', 'http://docs.python.org/installing/\
-                                                index.html', 'http://docs.python.org/library/index.html', 'http://docs.python.or\
-                                                g/license.html', 'http://docs.python.org/py-modindex.html', 'http://docs.python.\
-                                                org/reference/index.html', 'http://docs.python.org/search.html', 'http://docs.py\
-                                                thon.org/tutorial/index.html', 'http://docs.python.org/using/index.html', 'http:\
-                                                //docs.python.org/whatsnew/3.6.html', 'https://docs.python.org/2.7/', 'https://d\
-                                                ocs.python.org/3.5/', 'https://docs.python.org/3.7/']
-                                                )
-            
-    def test_links_validos_unlam(self):
-        self.assertEqual(
-            links.obtener_links_validos_desde_url('http://www.unlam.edu.ar'),
-            ['http://alumno2.unlam.edu.ar/', 'http://antigua.unlam.edu.ar', 'http://biblioteca.unlam.edu.ar/',
-            'http://comunidad.unlam.edu.ar', 'http://cyt.unlam.edu.ar/',
-            'http://derecho.unlam.edu.ar/', 'http://economicas.unlam.edu.ar/', 'http://formacioncontinua.unlam.edu.ar/', 'http://humanidades.unlam.edu.ar', 'http://ingenieria.unlam.edu.ar/', 'http://ingresantes.unlam.edu.ar/', 'http://miel.unlam.edu.ar/', 'http://observatoriosocial.unlam.edu.ar/', 'http://posgrado.unlam.edu.ar',
-            'http://reddi.unlam.edu.ar/index.php/reddi', 'http://repositoriocyt.unlam.edu.ar/', 'http://rince.unlam.edu.ar/', 'http://salud.unlam.edu.ar/', 'http://www.unlam.edu.ar', 'http://www.unlam.edu.ar/index.php', 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=curso',
-            'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idDestacado=8987', 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idDestacado=9047', 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idDestacado=9056', 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idDestacado=9059',
-            'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idNoticia=9048', 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idNoticia=9049', 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idNoticia=9050', 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idNoticia=9052',
-            'http://www.unlam.edu.ar/index.php?seccion=-1&accion=difusion&idNoticia=9053', 'http://www.unlam.edu.ar/index.php?seccion=1', 'http://www.unlam.edu.ar/index.php?seccion=10', 'http://www.unlam.edu.ar/index.php?seccion=11', 'http://www.unlam.edu.ar/index.php?seccion=11&idArticulo=150', 'http://www.unlam.edu.ar/index.php?seccion=11&idArticulo=151',
-            'http://www.unlam.edu.ar/index.php?seccion=2', 'http://www.unlam.edu.ar/index.php?seccion=2&idArticulo=570', 'http://www.unlam.edu.ar/index.php?seccion=3', 'http://www.unlam.edu.ar/index.php?seccion=4', 'http://www.unlam.edu.ar/index.php?seccion=4&idArticulo=113',
-            'http://www.unlam.edu.ar/index.php?seccion=5', 'http://www.unlam.edu.ar/index.php?seccion=6', 'http://www.unlam.edu.ar/index.php?seccion=7', 'http://www.unlam.edu.ar/index.php?seccion=8', 'http://www.unlam.edu.ar/index.php?seccion=8&idArticulo=148', 'http://www.unlam.edu.ar/index.php?seccion=8&idArticulo=449',
-            'http://www.unlam.edu.ar/index.php?seccion=8&idArticulo=541', 'http://www.unlam.edu.ar/index.php?seccion=8&idArticulo=594', 'http://www.unlam.edu.ar/index.php?seccion=9', 'http://www.unlam.edu.ar/rihumso/index.php/humanidades/'])
+    def test_se_puede_acceder_a_url(self):
+
+            self.assertFalse(links.se_puede_acceder_a_url('https://sitioquenoesasfasdasda.org'))
+        
+            self.assertTrue(links.se_puede_acceder_a_url('https://www.python.org')) 
+
+    def test_abrir_url_en_navegador(self):
+        br = mechanize.Browser()
+        links.configurar_navegador(br)
+        self.assertFalse(links.abrir_url_en_navegador(br, 'https://sitioquenoesasfasdasda.org'))
+
+        self.assertTrue(links.abrir_url_en_navegador(br, 'https://www.python.org')) 
+
+        self.assertTrue(links.abrir_url_en_navegador(br, 'https://cart.dx.com/')) 
+
+        self.assertTrue(links.abrir_url_en_navegador(br, 'https://cart.dx.com/', 'DXGlobalization_lang=en;DXGlobalization_locale=en-US;DXGlobalization_currency=ARS'))
+
+    def test_validar_formato_cookies(self):
+
+        self.assertTrue(links.validar_formato_cookies('DXGlobalization_lang=en;DXGlobalization_locale=en-US;DXGlobalization_currency=ARS'))
+        
+        self.assertFalse(links.validar_formato_cookies('DXGlobalization_lang=en;'))
+
+        self.assertFalse(links.validar_formato_cookies('DXGlobalization_lang='))
 
 if __name__ == '__main__':
     unittest.main()

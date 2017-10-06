@@ -1,4 +1,3 @@
-import os
 import sys
 import re
 import httplib
@@ -78,9 +77,7 @@ def obtener_parametros_de_la_url(url_):
     url_parseado = urlparse.urlsplit(url_)
     return urlparse.parse_qs(url_parseado.query) #allow_fragments=False,keep_blank_values=True)
 
-
-
-def obtener_scripts_desde_url(url_, esquema, html):#s, link_a_archivo, link_a_dominio_o_subdominio):
+def obtener_scripts_desde_url(url_, esquema, html):
     '''
     Devuelve los scripts encontrados en la url, ya sean los que estan presentes
     en el mismo html o los que son referenciados a traves de un archivo que pertenece
@@ -95,12 +92,11 @@ def obtener_scripts_desde_url(url_, esquema, html):#s, link_a_archivo, link_a_do
         else:
             if script.has_attr('src'):
                 link_script = obtener_link_valido(url_, script['src'], esquema)
-                print link_script
                 if link_script is not None:
                     try:
                         script_js = urllib2.urlopen(link_script).read()
                         scripts.add(script_js)
-                    except urllib2.HTTPError, error:
+                    except (urllib2.HTTPError, ValueError) as error:
                         print 'Error obteniendo el script: ', link_script
                         print 'Detales: ', error
     return list(scripts)
@@ -112,13 +108,14 @@ def obtener_link_valido(url_, link, esquema):
     '''                                         #TODO: no deberia revisar aca si es un .js
     link_valido = None
     if REGEX_ARCHIVO.match(link) is not None or REGEX_CARPETA.match(link) is not None:
-        return urlparse.urljoin(url_, link)
-    if REGEX_DOMINIO_O_SUBDOMINIO.match(link) is not None:
-        link_valido = link
-        if link_valido[0] == '/' and link_valido[1] == '/':
-            link_valido = link_valido.replace('//', esquema + '://')
-        if '#' in link_valido:
-            link_valido = link_valido[:link_valido.index('#')]
+        link_valido = urlparse.urljoin(url_, link)
+    else: 
+        if REGEX_DOMINIO_O_SUBDOMINIO.match(link) is not None and link != '/':
+            link_valido = link
+            if link_valido[0] == '/' and link_valido[1] == '/':
+                link_valido = link_valido.replace('//', esquema + '://')
+            if '#' in link_valido:
+                link_valido = link_valido[:link_valido.index('#')]
     return link_valido
 
 def obtener_entradas_desde_url(html):
@@ -149,13 +146,14 @@ def configurar_navegador(browser):
     browser.set_handle_robots(False)
     browser.set_handle_refresh(False)
 
-def es_url_prohibida(url_):
+def _es_url_prohibida(url_):
     '''
     Devuelve si una URL es un archivo el cual no es
     necesario/posible inyectar un payload XSS.
     '''
+
     for extension in BLACKLIST:
-        if extension in url_[:len(extension)]:
+        if extension in url_[-len(extension):]:
             return True
     return False
 
@@ -189,7 +187,7 @@ def se_puede_acceder_a_url(url_):
         print error
         return False
 
-def abrir_url_en_navegador(br, url_, cookies=None):
+def abrir_url_en_navegador(br, url_, cookies_=None):
     '''
     Devuelve si es posible abir la URL (cookies opcionales)
     en el navegador proporconado por Mechanize.
@@ -199,8 +197,8 @@ def abrir_url_en_navegador(br, url_, cookies=None):
     while not conectado:
         try:
             br.open(url_)
-            if cookies is not None:
-                for cookie in cookies:
+            if cookies_ is not None:
+                for cookie in cookies_:
                     br.set_cookie(cookie)
                 br.open(url_)
             conectado = True
@@ -210,8 +208,17 @@ def abrir_url_en_navegador(br, url_, cookies=None):
             intentos += 1
             if intentos > 4:
                 return False
+def validar_formato_cookies(cookies_):
+    lista_cookies = cookies_.split(';')
+    for cookie in lista_cookies:
+        cookie_y_valor = cookie.split('=')
+        if len(cookie_y_valor) != 2:
+            return False    #TODO pasar a None con las opcs
+        if cookie_y_valor[0] == '' or cookie_y_valor[1] == '':
+            return False
+    return lista_cookies
 
-def obtener_links_validos_desde_url(url_, cookies=None):
+def obtener_links_validos_desde_url(url_, cookies_=None):
     '''
     Devuelve un diccionario de objetos Links con todas las URLs encontradas
     a partir de la original con todos sus datos para poder analizar vulnerabilidades
@@ -219,25 +226,24 @@ def obtener_links_validos_desde_url(url_, cookies=None):
     '''
     br = mechanize.Browser()
     configurar_navegador(br)
-    if not abrir_url_en_navegador(br, url_, cookies) or not es_url_valida(url_) or es_url_prohibida(url_):
+    if not abrir_url_en_navegador(br, url_, cookies_) or not es_url_valida(url_) or _es_url_prohibida(url_):
         print "Error al abrir la URL."
-        if cookies is not None:
+        if cookies_ is not None:
             print "Revise las cookies."
         return dict()
     links = list()
     links_utiles = dict()
     #cookies = ["JSESSIONID=76E51C2E3C449FB79D5F032071E89D19.nodo01_t01", "SRV=nodo01_t01"]
-    #br.set_cookie(cookie)
-    url_parseado = urlparse.urlparse(url)
-    _compilar_regex(r'(?!^//)[A-Za-z0-9_\-//]*\.\w*',
-                    r'.*\b' + url_parseado.hostname.replace('www.', r'\.?') + r'\b(?!\.)',
-                    r'(?!^//)[A-Za-z0-9_\-//]*/[A-Za-z0-9_\-\.//]*'
+    url_parseado = urlparse.urlparse(url_)
+    _compilar_regex(r'(?!^//|\bhttp\b)[A-Za-z0-9_\-//]*\.\w*', #TODO test
+                    '(?!^//|\bhttp\b)([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
+                    r'.*\b' + url_parseado.hostname.replace('www.', r'\.?') + r'\b(?!\.)'
                    )
-    links.append(url)
+    links.append(url_)
     for link in br.links():
         links.append(link.url)
     for link in links:
-        if es_url_prohibida(link):
+        if _es_url_prohibida(link):
             continue
         link_valido = obtener_link_valido(url_, link, url_parseado.scheme)
         if not link_valido:
@@ -258,14 +264,19 @@ def obtener_links_validos_desde_url(url_, cookies=None):
         print links_utiles[link].parametros
         print links_utiles[link].entradas
         print links_utiles[link].url
-        os.system('pause')
+    br.close()
     return links_utiles
 
 if __name__ == '__main__':
-    url = sys.argv[1]
-    if not es_url_valida(url):
+    url_ = sys.argv[1]
+    cookies_ = None
+    if not es_url_valida(url_):
         sys.exit("Esquema de URL invalido. Ingrese nuevamente.")
-    if not se_puede_acceder_a_url(url):
+    if not se_puede_acceder_a_url(url_):
         sys.exit("No se puede acceder a la URL. Revise la conexion o el sitio web.")
-    obtener_links_validos_desde_url(sys.argv[1])
+    if len(sys.argv) > 2:
+        cookies_ = sys.argv[2]
+        if not validar_formato_cookies(cookies_):
+            sys.exit('Error con las cookies ingresadas. Revise el formato "xxx=yyy;"')
+    obtener_links_validos_desde_url(url_, cookies_)
     #obtener_scripts_desde_url(sys.argv[1])
