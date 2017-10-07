@@ -2,6 +2,7 @@ import sys
 import os
 import time
 import codecs
+import Queue
 import links
 import mechanize
 import selenium
@@ -21,8 +22,10 @@ blacklist = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
 
 #DOM_FILTER_REGEX = r"(?s)<!--.*?-->|\bescape\([^)]+\)|\([^)]+==[^(]+\)|\"[^\"]+\"|'[^']+'"
 
-re_domxss_sources = re.compile('(location\s*[\[.])|([.\[]\s*["\']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)')
-re_domxss_sinks = re.compile('((src|href|data|location|code|value|action)\s*["\'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["\'\]]*\s*\()')
+#RE_DOMXSS_SOURCES = re.compile('(location\s*[\[.])|([.\[]\s*["\']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)')
+#RE_DOMXSS_SINKS = re.compile('((src|href|data|location|code|value|action)\s*["\'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["\'\]]*\s*\()')
+RE_DOMXSS_SOURCES = re.compile("""/(location\s*[\[.])|([.\[]\s*["']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)/""")
+RE_DOMXSS_SINKS = re.compile("""/((src|href|data|location|code|value|action)\s*["'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["'\]]*\s*\()/""")   
 
 #TODO singleton
 
@@ -65,32 +68,47 @@ def cargar_payloads():
             for linea in archivo_payloads.readlines():
                 lista_payloads.append(linea)
                 #print linea
+        return lista_payloads
     except EnvironmentError, error:
         print error
-    finally:
-        #print len(lista_payloads)
-        return lista_payloads
 
+def obtener_vulnerabilidades_xss_dom(linea, regex, tipo):
+    lista_vulnerabilidades = list()
+    lista_posiciones = list()
+    for patron in regex.finditer(linea, re.MULTILINE):
+        for grupo in patron.groups():
+            posicion = str(patron.span())
+            if grupo is not None and posicion not in lista_posiciones:
+                lista_posiciones.append(posicion)
+                lista_vulnerabilidades.append(tipo + ' encontrado' + posicion + ': ' +  grupo)
+    #print lista_vulnerabilidades
+    #os.system('pause')
+    return lista_vulnerabilidades
 
 def detectar_xss_DOM(scripts):
+    '''
+    Devuelve un diccionario con las vulnerabilidades DOM XSS encontradas a travrs de una analisis estatico
+    con su numero de linea y su posicion ed inicio y fin de la misma. 
+    '''
     nro_linea = 0
-    for script in scripts:
+    dict_xss_dom = dict()
+    for script in scripts: #TODO ver que no haga 2 veces el mismo archio
+        lista_xss_dom = list()
         for linea in script.split('\n'):
             nro_linea += 1
-            patron = re_domxss_sources.search(linea) 
-            #for grupo in patron.groups():
-            if patron is not None:
-                print 'DOM XSS source',linea 
-                #os.system('pause')
-            patron = re_domxss_sinks.search(linea)
-            if patron is not None:
-                print 'DOM XSS sink', linea
-                #os.system('pause')
-    return 0
+            lista_xss_dom = obtener_vulnerabilidades_xss_dom(linea, RE_DOMXSS_SOURCES, 'Source')
+            lista_xss_dom += obtener_vulnerabilidades_xss_dom(linea, RE_DOMXSS_SINKS, 'Sink')
+            
+            if lista_xss_dom:
+                dict_xss_dom[nro_linea] = lista_xss_dom
+                print lista_xss_dom
+                os.system('pause')
+    # print dict_xss_dom
+    return dict_xss_dom
 
 def detectar_xss_reflejado(br, payload):
     if payload in br.response().read(): #TODO: XSS reflejado
-        os.system('pause')
+        #os.system('pause')
         #br.back()
         return True
     #br.back()
@@ -126,93 +144,112 @@ def detectar_xss_almacenado(driver, parametro, payload):
         #driver.execute_script("window.history.go(-1)")
         #return True
 def inyectar_payload(br, payload, parametro): #NO hace falta determinar si es get o post.
-    br.form[parametro.name] = payload
-    br.submit()
+    try:
+        br.form[parametro] = payload #TODO ver lo del name e id
+        br.submit()
+    except ValueError, error:
+        print error
+        print 'Error al enviar el control: ', parametro
 
-def buscar_vulnerabilidad_xss(url_ingresada, lista_payloads, cookies=None):
 
-    for extension in blacklist:
-        if extension in url_ingresada:
-            return False
+def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
+
+    #for extension in blacklist:
+    #    if extension in url_ingresada:
+    #        return False YA LO HACE LINKS
     
     #driver = webdriver.Firefox()
     #driver.get(url)
     #if cookies is not None:
     #    driver.manage().addCookie(cookies)
-    br = mechanize.Browser(factory=mechanize.RobustFactory())  # factory=mechanize.RobustFactory()
+    br = mechanize.Browser()#factory=mechanize.RobustFactory())  #TODO factory=mechanize.RobustFactory()
+    #links.configurar_navegador(br)
     br.addheaders = [('User-agent','Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11)Gecko/20071127 Firefox/2.0.0.11')]
     br.set_handle_robots(False)
     br.set_handle_refresh(False)
-
-    driver = webdriver.Firefox()    #PhantomJS 
-    driver.get(url_ingresada)
-    if cookies is not None:
-        driver.manage().addCookie(cookies)
-    
-    if not links.abrir_url_en_navegador(br, url_ingresada, cookies):
-        print "Error al abrir la URL."
+    if not links.abrir_url_en_navegador(br, objeto_link.url, cookies):
+        print "Error al abrir la URL." #TODO no deberia pasar esto
         if cookies is not None:
             print "Revise las cookies."
         return False
 
-    i = 0
-    forms_y_controles = dict()
-    forms = br.forms() 
-    for form in forms:     # if a form exists, submit it
+    '''driver = webdriver.Firefox()    #TODO dividir esto 
+    driver.get(objeto_link.url)
+    if cookies is not None:
+        driver.manage().addCookie(cookies)'''
+    
+
+    #i = 0
+    forms_y_entradas = objeto_link.entradas
+    #print forms_y_entradas
+    #forms = br.forms() 
+    for form in forms_y_entradas:     # if a form exists, submit it
         #params = form#list(br.forms())[0]    # our form
-        br.select_form(nr=i)    # submit the first form
-        controls = form.controls
-        for parametro in controls:
+        br.select_form(nr=form)    # submit the first form
+        lista_entradas = forms_y_entradas[form]
+        print 'Form: ', form
+        for entrada in lista_entradas:
+            print entrada['name']
             #print str(parametro)
             #par = str(p)
             # submit only those forms which require text
-            print parametro.name, parametro.type, parametro.id
-            if 'TextControl' in str(parametro) or 'TextareaControl' in str(parametro):
-                p = 0
-                encontrado = False
-                while p < len(lista_payloads) and not encontrado:
-                    #print parametro.type
-                    #os.system('pause')
-                    payload = lista_payloads.pop(p)
-                    print payload
-                    inyectar_payload(br, payload, parametro)
+            #print parametro.name, parametro.type, parametro.id
+            #if 'TextControl' in str(parametro) or 'TextareaControl' in str(parametro):
+            
+            p = 0
+            encontrado = False
+            while p < len(lista_payloads) and not encontrado:
+                #print parametro.type
+                #os.system('pause')
+                print p
+                #print br
+                payload = lista_payloads.pop(p)
+                print payload
+                inyectar_payload(br, payload, entrada['name'])
+                #br.form[entrada['id']] = payload #TODO ver lo del name e id
+                #br.submit()
+                if detectar_xss_reflejado(br, payload):
+                    #TODO log, bdd, etc.
+                    print "XSS encontrado: ",
+                    encontrado = True
+                    br.back() #TODO: Ver si srive afuera del if anterior este bloque
+                    br.select_form(nr=form)
                     if detectar_xss_reflejado(br, payload):
-                        #TODO log, bdd, etc.
-                        print "XSS encontrado: ",
-                        encontrado = True
-                        br.back() #TODO: Ver si srive afuera del if anterior este bloque
-                        br.select_form(nr=i)
-                        if detectar_xss_reflejado(br, payload):
-                            print "Stored"      #XSS encontrado al inyectar payload y luego de esto
-                        else:
-                            print "Reflejado"   #XSS encontrado solo al inyectar payload 
+                        print "Stored"      #XSS encontrado al inyectar payload y luego de esto
                     else:
-                        try:
-                            entrada = driver.find_element_by_id(parametro.id)
-                            if detectar_xss_almacenado(driver, entrada, payload):
-                                encontrado = True
-                        except NoSuchElementException as no_existe_elemento:
-                            print no_existe_elemento
-                            pass
-                        br.back()
-                        br.select_form(nr=i)
-                        #TODO: setup.py con selenium
-                    p += 1
-                    #else:
-                    #    br.back()
-                    #    br.select_form(nr=i)
-                        
+                        print "Reflejado"   #XSS encontrado solo al inyectar payload 
+                else:
+                    br.back()
+                    br.select_form(nr=form)
+                #print br
+                '''
+                else:
+                    try:
+                        entrada = driver.find_element_by_id(entrada['id']) #TODO ver id y name
+                        if detectar_xss_almacenado(driver, entrada, payload):
+                            encontrado = True
+                    except NoSuchElementException as error:
+                        print error
+                        pass
+                    br.back()
+                    br.select_form(nr=form)
+                    #TODO: setup.py con selenium'''
+                p += 1
+                #else:
+                #    br.back()
+                #    br.select_form(nr=i)
+                    
 
 
-        i += 1
+    #i += 1
         #print i
     br.close()
-    driver.quit()
+    #driver.quit()
 
 if __name__ == '__main__':
     #url = sys.argv[1]
     payloads = cargar_payloads()
-    if payloads is None:
+    if not payloads:
         sys.exit('Error al cargar las payloads.Revise el archivo.')
     if payloads == []:
         sys.exit("No se encontraron paylods. Revise el archivo 'payloads.txt' en la carpeta raiz.")
@@ -220,14 +257,19 @@ if __name__ == '__main__':
         sys.exit("Esquema de URL invalido. Ingrese nuevamente.")
     if not links.se_puede_acceder_a_url(sys.argv[1]):
         sys.exit("No se puede acceder a la URL. Revise la conexion o el sitio web.")
-    print sys.argv[1]
-    links = links.obtener_links_validos_desde_url(sys.argv[1])
+    #print sys.argv[1]
+    cola_links = links.obtener_links_validos_desde_url(sys.argv[1])
     
     #for url in urls_encontradas:
-    for url in links:
+    while not cola_links.empty():
         #print url
-        link = links[url]
-        detectar_xss_DOM(link.scripts)
-        buscar_vulnerabilidad_xss(url, payloads)
+        print 'EMPIEZA'
+        objeto_link = cola_links.get()
+        print objeto_link.url
+        print len(objeto_link.scripts)
+        print objeto_link.parametros
+        print objeto_link.entradas
+        buscar_vulnerabilidad_xss(objeto_link, payloads) #TODO ver si pasar objeto o partes
+        os.system('pause')
         
 

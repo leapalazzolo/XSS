@@ -87,6 +87,7 @@ class LinksTest(unittest.TestCase):
     def test_abrir_url_en_navegador(self):
         br = mechanize.Browser()
         links.configurar_navegador(br)
+        
         self.assertFalse(links.abrir_url_en_navegador(br, 'https://sitioquenoesasfasdasda.org'))
 
         self.assertTrue(links.abrir_url_en_navegador(br, 'https://www.python.org')) 

@@ -3,6 +3,7 @@ import re
 import httplib
 import urllib2
 import urlparse
+import Queue
 import mechanize
 from bs4 import BeautifulSoup
 
@@ -23,7 +24,7 @@ class Links(object):
         self._scripts = list()
         self._entradas = dict()
         self._html = str()
-        self._parametros = dict()
+        self._parametros_url = dict()
 
     @property
     def url(self):
@@ -55,11 +56,11 @@ class Links(object):
 
     @property
     def parametros(self):
-        return self._parametros
+        return self._parametros_url
 
     @parametros.setter
-    def parametros(self, parametros):
-        self._parametros = parametros
+    def parametros(self, parametros_url):
+        self._parametros_url = parametros_url
 
 def _compilar_regex(regex_link_a_archivo, regex_link_a_carpeta, regex_dominio_o_subdominio):
     '''
@@ -126,7 +127,7 @@ def obtener_entradas_desde_url(html):
     nro_form = 0
     forms_y_parametros = dict()
     html_parseado = BeautifulSoup(html, 'lxml')
-    listform = ['radio', 'checkbox', 'text', 'password', 'email', 'url', 'search', 'hidden']
+    listform = ['radio', 'checkbox', 'text', 'password', 'email', 'url', 'search']#, 'hidden']
     for form in html_parseado.findAll('form'):
         lista_parametros = form.findAll('input', {'type':''})
         lista_parametros += form.findAll('input', {'type':listform})
@@ -232,7 +233,9 @@ def obtener_links_validos_desde_url(url_, cookies_=None):
             print "Revise las cookies."
         return dict()
     links = list()
-    links_utiles = dict()
+    links_usados = list()
+    cola_links = Queue.Queue()
+
     #cookies = ["JSESSIONID=76E51C2E3C449FB79D5F032071E89D19.nodo01_t01", "SRV=nodo01_t01"]
     url_parseado = urlparse.urlparse(url_)
     _compilar_regex(r'(?!^//|\bhttp\b)[A-Za-z0-9_\-//]*\.\w*', #TODO test
@@ -242,13 +245,14 @@ def obtener_links_validos_desde_url(url_, cookies_=None):
     links.append(url_)
     for link in br.links():
         links.append(link.url)
-    for link in links:
+    for link in links: #TODO: metdo multithread que init el Br y haga el resto. Quere ed links
         if _es_url_prohibida(link):
             continue
         link_valido = obtener_link_valido(url_, link, url_parseado.scheme)
         if not link_valido:
             continue
-        if es_url_valida(link_valido) and link_valido not in links_utiles and abrir_url_en_navegador(br, link_valido):
+        if es_url_valida(link_valido) and link_valido and abrir_url_en_navegador(br, link_valido) and link_valido not in links_usados:
+            links_usados.append(link_valido)
             objeto_link = Links(link_valido)
             try:
                 objeto_link.html = br.response().read()
@@ -257,26 +261,30 @@ def obtener_links_validos_desde_url(url_, cookies_=None):
             objeto_link.scripts = obtener_scripts_desde_url(link_valido, url_parseado.scheme, objeto_link.html)
             objeto_link.entradas = obtener_entradas_desde_url(objeto_link.html)
             objeto_link.parametros = obtener_parametros_de_la_url(link_valido)
-            links_utiles[link_valido] = objeto_link
-    print len(links_utiles)
-    for link in links_utiles:
-        print len(links_utiles[link].scripts)
-        print links_utiles[link].parametros
-        print links_utiles[link].entradas
-        print links_utiles[link].url
+            #links_utiles[link_valido] = objeto_link
+            cola_links.put(objeto_link)
+    #print len(links_usados)
+    '''
+    while not cola_links.empty():
+        objeto_link = cola_links.get()
+        print len(objeto_link.scripts)
+        print objeto_link.parametros
+        print objeto_link.entradas
+        print objeto_link.url
     br.close()
-    return links_utiles
+    '''
+    return cola_links
 
 if __name__ == '__main__':
-    url_ = sys.argv[1]
-    cookies_ = None
-    if not es_url_valida(url_):
+    url_ingresada = sys.argv[1]
+    cookies_ingresadas = None
+    if not es_url_valida(url_ingresada):
         sys.exit("Esquema de URL invalido. Ingrese nuevamente.")
-    if not se_puede_acceder_a_url(url_):
+    if not se_puede_acceder_a_url(url_ingresada):
         sys.exit("No se puede acceder a la URL. Revise la conexion o el sitio web.")
     if len(sys.argv) > 2:
-        cookies_ = sys.argv[2]
-        if not validar_formato_cookies(cookies_):
+        cookies_ingresadas = sys.argv[2]
+        if not validar_formato_cookies(cookies_ingresadas):
             sys.exit('Error con las cookies ingresadas. Revise el formato "xxx=yyy;"')
-    obtener_links_validos_desde_url(url_, cookies_)
+    obtener_links_validos_desde_url(url_ingresada, cookies_ingresadas)
     #obtener_scripts_desde_url(sys.argv[1])
