@@ -2,11 +2,14 @@ import sys
 import re
 import httplib
 import urllib2
+import logging
 import urlparse
+import logging
 import Queue
 import mechanize
 from bs4 import BeautifulSoup
 
+logging.config.fileConfig('log.ini')
 
 REGEX_ARCHIVO, REGEX_CARPETA, REGEX_DOMINIO_O_SUBDOMINIO = None, None, None
 BLACKLIST = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
@@ -98,8 +101,9 @@ def obtener_scripts_desde_url(url_, esquema, html):
                         script_js = urllib2.urlopen(link_script).read()
                         scripts.add(script_js)
                     except (urllib2.HTTPError, ValueError) as error:
-                        print 'Error obteniendo el script: ', link_script
-                        print 'Detales: ', error
+                        #print 'Error obteniendo el script: ', link_script
+                        #print 'Detales: ', error
+                        pass #TODO
     return list(scripts)
 
 def obtener_link_valido(url_, link, esquema):

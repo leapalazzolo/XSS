@@ -1,7 +1,11 @@
 import sys
 import os
+import threading
 import time
 import codecs
+import urllib
+import urlparse
+import logging
 import Queue
 import links
 import mechanize
@@ -15,6 +19,8 @@ from selenium.common.exceptions import NoAlertPresentException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 
+logging.config.fileConfig('log.ini')
+
 blacklist = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
              '.pdf', '.doc', '.docx', '.zip', '.rar', '.rss']
 
@@ -27,39 +33,37 @@ blacklist = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
 RE_DOMXSS_SOURCES = re.compile("""/(location\s*[\[.])|([.\[]\s*["']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)/""")
 RE_DOMXSS_SINKS = re.compile("""/((src|href|data|location|code|value|action)\s*["'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["'\]]*\s*\()/""")   
 
-#TODO singleton
+class Worker(threading.Thread):
+    def __init__(self, cola_links, lista_payloads, *args, **kwargs):
+        self.cola_links = cola_links
+        self.lista_payloads = lista_payloads
+        threading.Thread.__init__(self, *args, **kwargs)
+    def run(self):
+        while not cola_links.empty():
+            link = self.cola_links.get(timeout=3)  # 3s timeout
+            print link.url
+            print len(link.scripts)
+            print link.parametros
+            print link.entradas
+            buscar_vulnerabilidad_xss(link, payloads)
+            #except Queue.Empty:
+                #print 'No hay mas trabajo'
+            # do whatever work you have to do on work
+        print 'Fin del trabajo'
+def crear_logger():
+    global logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler('xss.log')
+    fh.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.ERROR)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+    logger.addHandler(fh)
+    logger.addHandler(ch)
 
-def detectar_WAF():
-    noise = "<script>alert()</script>" #a payload which is noisy enough to provoke the WAF
-    fuzz = URL.replace("d3v", noise) #Replaces "d3v" in url with noise
-    res1 = urlopen(fuzz) #Opens the noise injected payload
-    if res1.code == 406 or res1.code == 501: #if the http response code is 406/501
-        print"\033[1;31m[-]\033[1;m WAF Detected : Mod_Security"
-        print "\033[1;33m[!]\033[1;m Delaying requests to avoid WAF detection\n"
-        WAF = "True" #A WAF is present
-        waf_choice()
-    elif res1.code == 999: #if the http response code is 999
-        print"\033[1;31m[-]\033[1;m WAF Detected : WebKnight"
-        print "\033[1;33m[!]\033[1;m Delaying requests to avoid WAF detection\n"
-        WAF = "True"
-        waf_choice()
-    elif res1.code == 419: #if the http response code is 419
-        print"\033[1;31m[-]\033[1;m WAF Detected : F5 BIG IP"
-        print "\033[1;33m[!]\033[1;m Delaying requests to avoid WAF detection\n"
-        WAF = "True"
-        waf_choice()
-    elif res1.code == 403: #if the http response code is 403
-        print "\033[1;31m[-]\033[1;m Unknown WAF Detected"
-        print "\033[1;33m[!]\033[1;m Delaying requests to avoid WAF detection\n"
-        WAF = "True"
-        waf_choice()
-    elif res1.code == 302: #if redirection is enabled
-        print "\033[1;31m[-]\033[1;m Redirection Detected! Exploitation attempts may fail.\n"
-        choice()
-    else:
-        print "\033[1;32m[+]\033[1;m WAF Status: Offline\n"
-        WAF = "False" #No WAF is present
-        choice()
 
 def cargar_payloads():
     lista_payloads = []
@@ -101,8 +105,6 @@ def detectar_xss_DOM(scripts):
             
             if lista_xss_dom:
                 dict_xss_dom[nro_linea] = lista_xss_dom
-                print lista_xss_dom
-                os.system('pause')
     # print dict_xss_dom
     return dict_xss_dom
 
@@ -113,6 +115,40 @@ def detectar_xss_reflejado(br, payload):
         return True
     #br.back()
     return False
+
+def buscar_xss_reflejado(br, payload, entrada, form):
+    #for paylaod in lista_payloads:
+        #print parametro.type
+        #os.system('pause')
+    #print br
+    inyectar_payload(br, payload, entrada)
+    #br.form[entrada['id']] = payload #TODO ver lo del name e id
+    #br.submit()
+    if payload in br.response().read():#detectar_xss_reflejado(br, payload):
+        #TODO log, bdd, etc.
+        print "XSS encontrado: ",
+        br.back() #TODO: Ver si srive afuera del if anterior este bloque
+        br.select_form(nr=form)
+        if payload in br.response().read():#detectar_xss_reflejado(br, payload):
+            print "Stored"      #XSS encontrado al inyectar payload y luego de esto#TODO
+            return True
+        else:
+            print "Reflejado"   #XSS encontrado solo al inyectar payload #TODO
+            return True
+    else:
+        return None
+
+def buscar_xss_almacenado(driver, payload, entrada):
+    try:
+        if entrada.has_attr('id'):
+            entrada_elem = driver.find_element_by_id(entrada['id']) #TODO ver id y name
+            return detectar_xss_almacenado(driver, entrada_elem, payload)
+        else:
+            if entrada.has_attr['name']:
+                entrada_elem = driver.find_element_by_name(entrada['name'])
+    except (NoSuchElementException, KeyError) as error:
+        return None
+    
 
 def detectar_xss_almacenado(driver, parametro, payload):
     #entradas = driver.find_elements_by_xpath("//input") #TODO: tipo de texto
@@ -134,26 +170,48 @@ def detectar_xss_almacenado(driver, parametro, payload):
         return True
     #    os.system('pause')
     except NoAlertPresentException:
-        return False
+        return None
     except TimeoutException: #TODO mejorar aca
-        return False
+        return None
     except:
-        return False
-    finally:
-        driver.find_element_by_tag_name('body').send_keys(Keys.COMMAND + 'w')
-        #driver.execute_script("window.history.go(-1)")
-        #return True
-def inyectar_payload(br, payload, parametro): #NO hace falta determinar si es get o post.
+        return None
+
+def inyectar_payload(br, payload, entrada): #NO hace falta determinar si es get o post.
     try:
-        br.form[parametro] = payload #TODO ver lo del name e id
-        br.submit()
+        if entrada.has_attr('id'):
+            br.form[entrada['id']] = payload #TODO ver lo del name e id
+            br.submit()
+        else:
+            if entrada.has_attr('name'):
+                br.form[entrada['name']] = payload #TODO ver lo del name e id
+                br.submit()
+
     except ValueError, error:
         print error
-        print 'Error al enviar el control: ', parametro
+        print 'Error al enviar el control: ', entrada
 
+def inyectar_payload_en_url(br, url_, payload, parametros):
+    url_parseado = list(urlparse.urlparse(url_))
+    print '\n\n\n\n\n'
+    for indice_parametro, valores in parametros.items():
+        for indice_valor, valor in enumerate(valores):
+            for payload in payloads:
+                nuevos_valores = dict(parametros)
+                nuevos_valores[indice_parametro][indice_valor] = valor + urllib.quote_plus(payload)
+                #print nuevos_valores
+                url_parseado[4] = urllib.urlencode(nuevos_valores)
+                nueva_url = urlparse.urlunparse(url_parseado)
+                print nueva_url
+                if links.abrir_url_en_navegador(br, nueva_url):
+                    if payload in br.response().read():
+                        print 'XSS by URL', payload
+                        os.system('pause')
 
 def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
 
+
+
+    #print threading.currentThread().getName(), 'Starting'
     #for extension in blacklist:
     #    if extension in url_ingresada:
     #        return False YA LO HACE LINKS
@@ -173,13 +231,11 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
             print "Revise las cookies."
         return False
 
-    '''driver = webdriver.Firefox()    #TODO dividir esto 
-    driver.get(objeto_link.url)
+        #i = 0
+    driver = webdriver.Firefox()    #TODO dividir esto 
+    driver.get(objeto_link.url) #TODO es solo una vez esto
     if cookies is not None:
-        driver.manage().addCookie(cookies)'''
-    
-
-    #i = 0
+        driver.manage().addCookie(cookies)
     forms_y_entradas = objeto_link.entradas
     #print forms_y_entradas
     #forms = br.forms() 
@@ -187,9 +243,9 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
         #params = form#list(br.forms())[0]    # our form
         br.select_form(nr=form)    # submit the first form
         lista_entradas = forms_y_entradas[form]
-        print 'Form: ', form
+        #print 'Form: ', form
         for entrada in lista_entradas:
-            print entrada['name']
+            #print entrada
             #print str(parametro)
             #par = str(p)
             # submit only those forms which require text
@@ -198,78 +254,105 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
             
             p = 0
             encontrado = False
+            #inyectar_payload_en_url(br, objeto_link.url, lista_payloads, objeto_link.parametros)
+            '''if entrada.has_attr('id'):
+                entrada = entrada['id']
+            else:
+                if entrada.has_attr['name']:
+                    entrada = entrada['name']
+                else:
+                    continue'''
+            
             while p < len(lista_payloads) and not encontrado:
                 #print parametro.type
                 #os.system('pause')
-                print p
-                #print br
-                payload = lista_payloads.pop(p)
-                print payload
-                inyectar_payload(br, payload, entrada['name'])
-                #br.form[entrada['id']] = payload #TODO ver lo del name e id
-                #br.submit()
-                if detectar_xss_reflejado(br, payload):
-                    #TODO log, bdd, etc.
-                    print "XSS encontrado: ",
+                #print entrada
+                #print br'''
+                payload = lista_payloads[p]
+                #entrada = entrada['id'] if entrada.has_attr('id') else entrada
+                
+                resultado = buscar_xss_reflejado(br, payload, entrada, form)
+                if resultado:
+                    print 'Encontradoooooo'
                     encontrado = True
-                    br.back() #TODO: Ver si srive afuera del if anterior este bloque
-                    br.select_form(nr=form)
-                    if detectar_xss_reflejado(br, payload):
-                        print "Stored"      #XSS encontrado al inyectar payload y luego de esto
-                    else:
-                        print "Reflejado"   #XSS encontrado solo al inyectar payload 
                 else:
-                    br.back()
-                    br.select_form(nr=form)
-                #print br
-                '''
-                else:
-                    try:
-                        entrada = driver.find_element_by_id(entrada['id']) #TODO ver id y name
-                        if detectar_xss_almacenado(driver, entrada, payload):
+                    #br.back()      #TODO xss_hard
+                    #br.select_form(nr=form)
+                    resultado = buscar_xss_almacenado(driver, payload, entrada)
+                    '''try:
+                        entrada_elem = driver.find_element_by_id(entrada) #TODO ver id y name
+                        if detectar_xss_almacenado(driver, entrada_elem, payload):
                             encontrado = True
-                    except NoSuchElementException as error:
-                        print error
-                        pass
-                    br.back()
-                    br.select_form(nr=form)
-                    #TODO: setup.py con selenium'''
+                    except (NoSuchElementException, KeyError) as error:
+                        print error'''
+                    if resultado:
+                        print 'Encontradoooo2'
+                        encontrado = True
+                        #driver.find_element_by_tag_name('body').send_keys(Keys.COMMAND + 'w') #TODO esto
+                            
+                br.back()
+                br.select_form(nr=form)
                 p += 1
                 #else:
                 #    br.back()
                 #    br.select_form(nr=i)
-                    
-
-
-    #i += 1
-        #print i
     br.close()
-    #driver.quit()
+    driver.quit()
+    #print threading.currentThread().getName(), 'Exiting'
+
+def worker(link, payloads):
+    while not cola_links.empty():
+        try:
+            link = cola_links.get()
+            print link.url
+            print len(link.scripts)
+            print link.parametros
+            print link.entradas
+            print threading.currentThread().getName(), 'Staring'
+            buscar_vulnerabilidad_xss(link, payloads)
+            print threading.currentThread().getName(), 'Exiting'
+            #ohbjeto_link = cola_links.get()
+           #Worker(cola_links, payloads).start()
+        except KeyboardInterrupt:
+            print 'Cerrando...'
+
 
 if __name__ == '__main__':
     #url = sys.argv[1]
+    #logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='xss.log')
+    #crear_logger()
     payloads = cargar_payloads()
     if not payloads:
-        sys.exit('Error al cargar las payloads.Revise el archivo.')
+        logging.critical('Error al cargar las payloads: Archivo payloads.txt no encontrado.')
+        sys.exit(1)
     if payloads == []:
-        sys.exit("No se encontraron paylods. Revise el archivo 'payloads.txt' en la carpeta raiz.")
+        logging.critical('Error al cargar las payloads: Archivo vacio o incompatible.')
+        sys.exit(1)
     if not links.es_url_valida(sys.argv[1]): #TODO: chequear url antes de la lista o cuando se va a hacer lo de xss?
-        sys.exit("Esquema de URL invalido. Ingrese nuevamente.")
+        logging.critical('Esquema de URL invalido. Ingrese nuevamente.')
+        sys.exit(1)
     if not links.se_puede_acceder_a_url(sys.argv[1]):
-        sys.exit("No se puede acceder a la URL. Revise la conexion o el sitio web.")
+        logging.critical('No se puede acceder a la URL. Revise la conexion o el sitio web.')
+        sys.exit(1)
     #print sys.argv[1]
     cola_links = links.obtener_links_validos_desde_url(sys.argv[1])
-    
+    threads = []
     #for url in urls_encontradas:
-    while not cola_links.empty():
+    #while not cola_links.empty():
         #print url
-        print 'EMPIEZA'
-        objeto_link = cola_links.get()
-        print objeto_link.url
-        print len(objeto_link.scripts)
-        print objeto_link.parametros
-        print objeto_link.entradas
-        buscar_vulnerabilidad_xss(objeto_link, payloads) #TODO ver si pasar objeto o partes
-        os.system('pause')
+    for i in range(2):
+        print 'EMPIEZA\n'
+        worker = Worker(cola_links, payloads)
+        threads.append(worker)
+        worker.setDaemon(True)
+        worker.start()
+
+    
+    for t in threads:
+        t.join()
+
+    print 'All work is done'
+            #buscar_vulnerabilidad_xss(objeto_link, payloads) #TODO ver si pasar objeto o partes
+        #os.system('pause')
         
 
