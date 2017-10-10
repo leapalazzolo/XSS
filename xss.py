@@ -4,6 +4,7 @@ import threading
 import time
 import codecs
 import urllib
+import argparse
 import urlparse
 import logging
 import Queue
@@ -20,61 +21,50 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 
 logging.config.fileConfig('log.ini')
+LOGGER = logging.getLogger('root')
 
 blacklist = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
              '.pdf', '.doc', '.docx', '.zip', '.rar', '.rss']
 
-#payloads = ['<script>alert(1)</script>', '<IMG SRC=/ onerror="alert(String.fromCharCode(88,83,83))"></img>', 'javascript:alert(1)']
-
-#DOM_FILTER_REGEX = r"(?s)<!--.*?-->|\bescape\([^)]+\)|\([^)]+==[^(]+\)|\"[^\"]+\"|'[^']+'"
-
-#RE_DOMXSS_SOURCES = re.compile('(location\s*[\[.])|([.\[]\s*["\']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)')
-#RE_DOMXSS_SINKS = re.compile('((src|href|data|location|code|value|action)\s*["\'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["\'\]]*\s*\()')
+LISTA_PAYLOADS = []
 RE_DOMXSS_SOURCES = re.compile("""/(location\s*[\[.])|([.\[]\s*["']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)/""")
 RE_DOMXSS_SINKS = re.compile("""/((src|href|data|location|code|value|action)\s*["'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["'\]]*\s*\()/""")   
 
 class Worker(threading.Thread):
-    def __init__(self, cola_links, lista_payloads, *args, **kwargs):
+    def __init__(self, cola_links,  *args):
         self.cola_links = cola_links
-        self.lista_payloads = lista_payloads
-        threading.Thread.__init__(self, *args, **kwargs)
+        #self.LISTA_PAYLOADS = LISTA_PAYLOADS
+        threading.Thread.__init__(self, *args)
     def run(self):
         while not cola_links.empty():
             link = self.cola_links.get(timeout=3)  # 3s timeout
             print link.url
             print len(link.scripts)
+            #ver si esta en cola de vulnerables
             print link.parametros
             print link.entradas
-            buscar_vulnerabilidad_xss(link, payloads)
+            buscar_vulnerabilidad_xss(link)
+            if link.parametros:
+                inyectar_payload_en_url(link.url, link.parametros)
+            if link.scripts:
+                buscar_xss_dom(link.scripts) #TODO ver duplicados
+            #agregar a cola de vulenrables
             #except Queue.Empty:
                 #print 'No hay mas trabajo'
             # do whatever work you have to do on work
         print 'Fin del trabajo'
-def crear_logger():
-    global logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler('xss.log')
-    fh.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.ERROR)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-    logger.addHandler(fh)
-    logger.addHandler(ch)
 
-
-def cargar_payloads():
+def obtener_payloads():
     lista_payloads = []
     try:
         with open('payloads.txt', 'r') as archivo_payloads:
             for linea in archivo_payloads.readlines():
                 lista_payloads.append(linea)
-                #print linea
-        return lista_payloads
     except EnvironmentError, error:
-        print error
+        LOGGER.critical('Error al cargar las payloads: %s' % error)
+    finally:
+        return lista_payloads
+        
 
 def obtener_vulnerabilidades_xss_dom(linea, regex, tipo):
     lista_vulnerabilidades = list()
@@ -89,10 +79,10 @@ def obtener_vulnerabilidades_xss_dom(linea, regex, tipo):
     #os.system('pause')
     return lista_vulnerabilidades
 
-def detectar_xss_DOM(scripts):
+def buscar_xss_dom(scripts):
     '''
     Devuelve un diccionario con las vulnerabilidades DOM XSS encontradas a travrs de una analisis estatico
-    con su numero de linea y su posicion ed inicio y fin de la misma. 
+    con su numero de linea y su posicion de inicio y fin de la misma. 
     '''
     nro_linea = 0
     dict_xss_dom = dict()
@@ -109,15 +99,18 @@ def detectar_xss_DOM(scripts):
     return dict_xss_dom
 
 def detectar_xss_reflejado(br, payload):
-    if payload in br.response().read(): #TODO: XSS reflejado
-        #os.system('pause')
-        #br.back()
-        return True
+    try:
+        if payload in br.response().read(): #TODO: XSS reflejado
+            #os.system('pause')
+            #br.back()
+            return True
+    except httplib.IncompleteRead as error:
+            #LOGGER.critical('Error al obtener el HTML de la URL: %s. Error: %s.', link_valido, error)
     #br.back()
-    return False
+        return False
 
 def buscar_xss_reflejado(br, payload, entrada, form):
-    #for paylaod in lista_payloads:
+    #for paylaod in LISTA_PAYLOADS:
         #print parametro.type
         #os.system('pause')
     #print br
@@ -190,12 +183,13 @@ def inyectar_payload(br, payload, entrada): #NO hace falta determinar si es get 
         print error
         print 'Error al enviar el control: ', entrada
 
-def inyectar_payload_en_url(br, url_, payload, parametros):
+def inyectar_payload_en_url(url_, parametros):
+    br = mechanize.Browser()#factory=mechanize.RobustFactory())  #TODO factory=mechanize.RobustFactory()
+    links.configurar_navegador(br)
     url_parseado = list(urlparse.urlparse(url_))
-    print '\n\n\n\n\n'
     for indice_parametro, valores in parametros.items():
         for indice_valor, valor in enumerate(valores):
-            for payload in payloads:
+            for payload in LISTA_PAYLOADS:
                 nuevos_valores = dict(parametros)
                 nuevos_valores[indice_parametro][indice_valor] = valor + urllib.quote_plus(payload)
                 #print nuevos_valores
@@ -203,28 +197,16 @@ def inyectar_payload_en_url(br, url_, payload, parametros):
                 nueva_url = urlparse.urlunparse(url_parseado)
                 print nueva_url
                 if links.abrir_url_en_navegador(br, nueva_url):
-                    if payload in br.response().read():
+                    if detectar_xss_reflejado(br, payload):
                         print 'XSS by URL', payload
-                        os.system('pause')
+                        #os.system('pause')
 
-def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
-
-
-
-    #print threading.currentThread().getName(), 'Starting'
-    #for extension in blacklist:
-    #    if extension in url_ingresada:
-    #        return False YA LO HACE LINKS
-    
-    #driver = webdriver.Firefox()
-    #driver.get(url)
-    #if cookies is not None:
-    #    driver.manage().addCookie(cookies)
+def buscar_vulnerabilidad_xss(objeto_link, cookies=None):
     br = mechanize.Browser()#factory=mechanize.RobustFactory())  #TODO factory=mechanize.RobustFactory()
-    #links.configurar_navegador(br)
-    br.addheaders = [('User-agent','Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11)Gecko/20071127 Firefox/2.0.0.11')]
-    br.set_handle_robots(False)
-    br.set_handle_refresh(False)
+    links.configurar_navegador(br)
+    #br.addheaders = [('User-agent','Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11)Gecko/20071127 Firefox/2.0.0.11')]
+    #br.set_handle_robots(False)
+    #br.set_handle_refresh(False)
     if not links.abrir_url_en_navegador(br, objeto_link.url, cookies):
         print "Error al abrir la URL." #TODO no deberia pasar esto
         if cookies is not None:
@@ -254,7 +236,7 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
             
             p = 0
             encontrado = False
-            #inyectar_payload_en_url(br, objeto_link.url, lista_payloads, objeto_link.parametros)
+            #inyectar_payload_en_url(objeto_link.url, LISTA_PAYLOADS, objeto_link.parametros)
             '''if entrada.has_attr('id'):
                 entrada = entrada['id']
             else:
@@ -263,12 +245,12 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
                 else:
                     continue'''
             
-            while p < len(lista_payloads) and not encontrado:
+            while p < len(LISTA_PAYLOADS) and not encontrado:
                 #print parametro.type
                 #os.system('pause')
                 #print entrada
                 #print br'''
-                payload = lista_payloads[p]
+                payload = LISTA_PAYLOADS[p]
                 #entrada = entrada['id'] if entrada.has_attr('id') else entrada
                 
                 resultado = buscar_xss_reflejado(br, payload, entrada, form)
@@ -300,39 +282,22 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_payloads, cookies=None):
     driver.quit()
     #print threading.currentThread().getName(), 'Exiting'
 
-def worker(link, payloads):
-    while not cola_links.empty():
-        try:
-            link = cola_links.get()
-            print link.url
-            print len(link.scripts)
-            print link.parametros
-            print link.entradas
-            print threading.currentThread().getName(), 'Staring'
-            buscar_vulnerabilidad_xss(link, payloads)
-            print threading.currentThread().getName(), 'Exiting'
-            #ohbjeto_link = cola_links.get()
-           #Worker(cola_links, payloads).start()
-        except KeyboardInterrupt:
-            print 'Cerrando...'
 
 
 if __name__ == '__main__':
     #url = sys.argv[1]
     #logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='xss.log')
     #crear_logger()
-    payloads = cargar_payloads()
-    if not payloads:
-        logging.critical('Error al cargar las payloads: Archivo payloads.txt no encontrado.')
-        sys.exit(1)
-    if payloads == []:
-        logging.critical('Error al cargar las payloads: Archivo vacio o incompatible.')
+    #global LISTA_PAYLOADS
+    LISTA_PAYLOADS = obtener_payloads()
+    if LISTA_PAYLOADS == []:
+        LOGGER.critical('Error al cargar las payloads: Revise el archivo payloads.txt.')
         sys.exit(1)
     if not links.es_url_valida(sys.argv[1]): #TODO: chequear url antes de la lista o cuando se va a hacer lo de xss?
-        logging.critical('Esquema de URL invalido. Ingrese nuevamente.')
+        LOGGER.critical('Esquema de URL invalido. Ingrese nuevamente.')
         sys.exit(1)
     if not links.se_puede_acceder_a_url(sys.argv[1]):
-        logging.critical('No se puede acceder a la URL. Revise la conexion o el sitio web.')
+        LOGGER.critical('No se puede acceder a la URL. Revise la conexion o el sitio web.')
         sys.exit(1)
     #print sys.argv[1]
     cola_links = links.obtener_links_validos_desde_url(sys.argv[1])
@@ -342,7 +307,7 @@ if __name__ == '__main__':
         #print url
     for i in range(2):
         print 'EMPIEZA\n'
-        worker = Worker(cola_links, payloads)
+        worker = Worker(cola_links)
         threads.append(worker)
         worker.setDaemon(True)
         worker.start()
@@ -355,4 +320,47 @@ if __name__ == '__main__':
             #buscar_vulnerabilidad_xss(objeto_link, payloads) #TODO ver si pasar objeto o partes
         #os.system('pause')
         
-
+def main():
+    descripcion = ''
+    """
+    """
+    parser = argparse.ArgumentParser(description=descripcion, prog='PROG', usage='%(prog)s [options]', epilog='')
+    parser.add_argument('-u',
+                        '--url',
+                        metavar='http://example.com',
+                        type=str,
+                        help='La URL en la cual se basara el analisis.',
+                        action='store',
+                        dest='url'
+                        )
+    parser.add_argument('-c',
+                        '--cookies',
+                        metavar='Nombre=valor Nombre=valor',
+                        type=str,
+                        nargs='*',
+                        help='Las cookies para la URL ingresada.',
+                        action='store',
+                        dest='cookies'
+                        )
+    parser.add_argument('-d',
+                        '--dom',
+                        help='Seleccionar un analisis estatico DOM Based XSS.',
+                        action='store_true',
+                        dest='dom'
+                        )
+    
+    parser.add_argument('-s',
+                        '--simple',
+                        help='Seleccionar un analisis XSS Reflected, Stored y DOM Based.',
+                        action='store_true',
+                        dest='reflected'
+                        )
+    
+    parser.add_argument('-t',
+                        '--threads',
+                        metavar='N',
+                        type=int,
+                        help='La cantidad de threads para realizar la busqueda de vulnerabilidades.',
+                        action='store',
+                        dest='threads'
+                        )

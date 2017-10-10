@@ -13,7 +13,7 @@ class LinksTest(unittest.TestCase):
         url_unlam = 'http://www.unlam.edu.ar/index.php'
         url_unlam_con_parametros = 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=buscador'
         url_google_con_parametros = 'https://www.google.com.ar/?gfe_rd=cr&dcr=0&ei=eUXWWZPVGcb_8AfYso_wAw&gws_rd=ssl'
-
+        
         self.assertEqual(links.obtener_parametros_de_la_url(url_unlam_con_parametros),
                          {'seccion':['-1'], 'accion':['buscador']}
                         )

