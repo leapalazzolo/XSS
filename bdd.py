@@ -7,7 +7,7 @@ import logging
 from logging import config
 
 logging.config.fileConfig('log.ini')
-LOGGER = logging.getLogger('root')
+LOGGER = logging.getLogger('bdd')
 
 class BDD(object):
     def __init__(self, ruta_archivo, lista_payload):
@@ -17,24 +17,25 @@ class BDD(object):
         except OSError:
             pass
         conn = sqlite3.connect(ruta_archivo, check_same_thread=False)
-        LOGGER.debug('BDD creada!')
+        LOGGER.info('BDD creada!')
         self.conn = conn
         self.archivo = ruta_archivo
         self.cursor = conn.cursor()
         try:
             self.__create_table()
             LOGGER.debug('Tablas creadas en BDD.')
-            self.__insertar_en_tabla_xss('1', 'Reflected')
-            self.__insertar_en_tabla_xss('2', 'DOM Based')
-            self.__insertar_en_tabla_elemento('1', 'Entrada')
-            self.__insertar_en_tabla_elemento('2', 'Parametro URL')
-            self.__insertar_en_tabla_elemento('3', 'Sink')
-            self.__insertar_en_tabla_elemento('4', 'Source')
+            self.__insertar_en_tabla_xss('Reflected')
+            self.__insertar_en_tabla_xss('DOM Based')
+            self.__insertar_en_tabla_elemento('Entrada')
+            self.__insertar_en_tabla_elemento('Parametro URL')
+            self.__insertar_en_tabla_elemento('Sink')
+            self.__insertar_en_tabla_elemento('Source')
             for indice, valor in enumerate(lista_payload):
-                self.__insertar_en_tabla_payload( indice + 1, valor)
-            LOGGER.debug('Datos iniciales cargados en BDD.')
+                self.__insertar_en_tabla_payload(valor)
+            LOGGER.info('Datos iniciales cargados en BDD.')
         except sqlite3.Error as error:
             LOGGER.critical('Error al cargar tablas y/o datos.\nError: %s', error)
+            raise
 
 
     def __create_table(self):
@@ -42,54 +43,68 @@ class BDD(object):
         Función para crear las tablas y llenar los datos estáticos de las mismas.
         '''
         try:
-            self.cursor.execute('CREATE TABLE xss(id INTEGER PRIMARY KEY,tipo TEXT);')
-            self.cursor.execute('CREATE TABLE payload(id INTEGER PRIMARY KEY,tipo TEXT);')
-            self.cursor.execute('CREATE TABLE elemento(id INTEGER PRIMARY KEY,tipo TEXT);')
-            self.cursor.execute('CREATE TABLE posicion(id INTEGER PRIMARY KEY,inicio INTEGER, fin INTEGER, linea TEXT);')
-            self.cursor.execute('CREATE TABLE script(id INTEGER PRIMARY KEY,script TEXT);')
+            self.cursor.execute('CREATE TABLE xss(id INTEGER PRIMARY KEY AUTOINCREMENT,tipo TEXT);')
+            self.cursor.execute('CREATE TABLE payload(id INTEGER PRIMARY KEY AUTOINCREMENT,tipo TEXT);')
+            self.cursor.execute('CREATE TABLE elemento(id INTEGER PRIMARY KEY AUTOINCREMENT,tipo TEXT);')
+            self.cursor.execute('CREATE TABLE posicion(id INTEGER PRIMARY KEY AUTOINCREMENT,inicio INTEGER, fin INTEGER, linea TEXT);')
+            self.cursor.execute('CREATE TABLE script(id INTEGER PRIMARY KEY AUTOINCREMENT,script TEXT);')
             self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al crear tablas.\nError: %s', error)
             raise
         try:
-            self.cursor.execute('CREATE TABLE vulnerabilidad(id INTEGER PRIMARY KEY,'\
-                                                        'url TEXT,'\
-                                                        'xss_id INTEGER,'\
-                                                        'elemento_id INTEGER,'\
-                                                        'elemento TEXT,'\
-                                                        'payload_id INTEGER,'\
-                                                        'script_id INTEGER,'\
-                                                        'posicion_id INTEGER,'\
-                                                        'FOREIGN KEY(xss_id) REFERENCES xss(id),'\
-                                                        'FOREIGN KEY(elemento_id) REFERENCES elemento(id),'\
-                                                        'FOREIGN KEY(payload_id) REFERENCES payload(id),'\
-                                                        'FOREIGN KEY(posicion_id) REFERENCES posicion(id)'\
-                                                        'FOREIGN KEY(script_id) REFERENCES script(id)'\
-                                                        ');'\
+            self.cursor.execute('CREATE TABLE vulnerabilidad(id INTEGER PRIMARY KEY AUTOINCREMENT,'\
+                                                            'url TEXT,'\
+                                                            'xss_id INTEGER,'\
+                                                            'elemento_id INTEGER,'\
+                                                            'elemento TEXT,'\
+                                                            'payload_id INTEGER,'\
+                                                            'script_id INTEGER,'\
+                                                            'posicion_id INTEGER,'\
+                                                            'FOREIGN KEY(xss_id) REFERENCES xss(id),'\
+                                                            'FOREIGN KEY(elemento_id) REFERENCES elemento(id),'\
+                                                            'FOREIGN KEY(payload_id) REFERENCES payload(id),'\
+                                                            'FOREIGN KEY(posicion_id) REFERENCES posicion(id)'\
+                                                            'FOREIGN KEY(script_id) REFERENCES script(id)'\
+                                                            ');'\
                                 )
             self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al crear tabla principal.\nError: %s', error)
             raise
-    def __insertar_en_tabla_payload(self, id_, payload):
+    def __insertar_en_tabla_payload(self, payload):
         try:
-            self.cursor.execute("INSERT INTO payload (id, tipo) VALUES (?,?)", (id_, payload,))
+            self.cursor.execute("INSERT INTO payload (tipo) VALUES (?)", (payload,))
             self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al insertar en tabla de payload.\nError: %s', error)
             raise
 
-    def __insertar_en_tabla_xss(self, id_, xss):
+    def __insertar_en_tabla_xss(self, xss):
         try:
-            self.conn.execute("INSERT INTO xss (id, tipo) VALUES (?,?)", (id_, xss,))
+            self.conn.execute("INSERT INTO xss (tipo) VALUES (?)", (xss,))
             self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al insertar en tabla de xss.\nError: %s', error)
             raise
     
-    def __insertar_en_tabla_elemento(self, id_, elemento):
+    def __insertar_en_tabla_elemento(self, elemento):
         try:
-            self.conn.execute("INSERT INTO elemento (id, tipo) VALUES (?,?)", (id_, elemento,))
+            self.conn.execute("INSERT INTO elemento (tipo) VALUES (?)", (elemento,))
+            self.conn.commit()
+        except sqlite3.Error as error:
+            LOGGER.debug('Error al insertar en tabla de elemento.\nError: %s', error)
+            raise
+    
+    def insertar_vulnerabilidad_reflected(self, url, tipo_xss, tipo_elemento, elemento, payload):
+        try:
+            self.conn.execute("INSERT INTO vulnerabilidad (url, xss_id, elemento_id, elemento, payload_id)"\
+                              "VALUES( ?, "\
+                                      "(SELECT id FROM xss WHERE tipo = ?),"\
+                                      "(SELECT id FROM elemento WHERE tipo = ?),"\
+                                      "?,"\
+                                      "(SELECT id FROM payload WHERE tipo = ?)"\
+                                      ")", (url, tipo_xss, tipo_elemento, elemento, payload,))
             self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al insertar en tabla de elemento.\nError: %s', error)
@@ -97,7 +112,8 @@ class BDD(object):
 
 
 if __name__ == '__main__':
-    lista = ['"\"><imG/sRc=l oNerrOr=(prompt)() x>",',
-             ''"<!--<iMg sRc=--><img src=x oNERror=(prompt)`` x>",'',
-             ''"<deTails oNToggle=confi\u0072m()>",'']
+    lista = ['''"\"><imG/sRc=l oNerrOr=(prompt)() x>",''',
+             '''"<!--<iMg sRc=--><img src=x oNERror=(prompt)`` x>",''',
+             '''"<deTails oNToggle=confi\u0072m()>",''']
     bdd = BDD('bdd.db', lista)
+    bdd.insertar_vulnerabilidad_reflected("asd.com", "Reflected", "Entrada", "<nombre>",'"\"><imG/sRc=l oNerrOr=(prompt)() x>",')

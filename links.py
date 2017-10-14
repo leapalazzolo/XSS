@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys
 import re
 import httplib
@@ -7,14 +9,13 @@ import urlparse
 import Queue
 import mechanize
 from bs4 import BeautifulSoup
-from logging.config import fileConfig
+from logging import config
 
-fileConfig('log.ini')
+logging.config.fileConfig('log.ini')
 LOGGER = logging.getLogger('links')
 REGEX_ARCHIVO, REGEX_CARPETA, REGEX_DOMINIO_O_SUBDOMINIO = None, None, None
 BLACKLIST = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
              '.pdf', '.doc', '.docx', '.zip', '.rar', '.rss', '.js', '.min.js']
-             #TODO ver que los iltimos no sean esos
 
 class Links(object):
     '''
@@ -103,7 +104,7 @@ def obtener_scripts_desde_url(url_, esquema, html):
                         scripts.add(script_js)
                         LOGGER.info('Script externo encontrado en referencia de la url %s', url_)
                     except (urllib2.HTTPError, ValueError) as error:
-                        LOGGER.warning('Error al procesar script en la url %s. Error: %s', url_, error)
+                        LOGGER.info('Error al procesar script en la url %s. Error: %s', url_, error)
     return list(scripts)
 
 def obtener_link_valido(url_, link, esquema):
@@ -133,7 +134,7 @@ def obtener_entradas_desde_url(html):
     nro_form = 0
     forms_y_parametros = dict()
     html_parseado = BeautifulSoup(html, 'lxml')
-    listform = ['radio', 'checkbox', 'text', 'password', 'email', 'url', 'search']#, 'hidden']
+    listform = ['text', 'password', 'email', 'url', 'search']#, 'hidden'] 'radio', 'checkbox', 
     for form in html_parseado.findAll('form'):
         lista_parametros = form.findAll('input', {'type':''})
         lista_parametros += form.findAll('input', {'type':listform})
@@ -153,7 +154,7 @@ def configurar_navegador(browser):
     browser.set_handle_robots(False)
     browser.set_handle_refresh(False)
 
-def _es_url_prohibida(url_):
+def es_url_prohibida(url_):
     '''
     Devuelve si una URL es un archivo el cual no es
     necesario/posible inyectar un payload XSS.
@@ -188,7 +189,6 @@ def se_puede_acceder_a_url(url_):
     True
     """
     try:
-        #url_parseado = urlparse(url)
         respuesta = urllib2.urlopen(url_)
         return respuesta.code == 200
     except (urllib2.HTTPError, urllib2.URLError) as error:
@@ -206,28 +206,37 @@ def abrir_url_en_navegador(br, url_, cookies_=None):
         try:
             br.open(url_)
             if cookies_ is not None:
-                for cookie in cookies_:
+                for cookie in cookies_: #TODO ver cookies como STR
                     br.set_cookie(cookie)
+                #br.set_cookie(cookies_)
                 br.open(url_)
             conectado = True
             return conectado
         except (mechanize.HTTPError, mechanize.URLError, urllib2.URLError) as error:
-            LOGGER.warning('Error al abrir la URL %s. Error: %s. Intentando nuevamente.', url_, error)
+            LOGGER.info('Error al abrir la URL %s. \nError: %s. \nIntentando nuevamente.', url_, error)
             intentos += 1
             if intentos > 4:
-                LOGGER.warning('Error al abrir la URL %s. Abortado.', url_)
+                #LOGGER.warning('Error al abrir la URL %s. Abortado.', url_)
                 return False
-def validar_formato_cookies(cookies_):
+def obtener_cookies_validas(cookies_):
+    '''
+    Devuelve un diccionario de cookies si estas fueron ingresadas
+    respetando el orden AAA=YYY.
+    '''
+    #dict_cookies = {}
     lista_cookies = cookies_.split(';')
     for cookie in lista_cookies:
         cookie_y_valor = cookie.split('=')
         if len(cookie_y_valor) != 2:
             LOGGER.critical('Error con el formato de la cookie %s. No cumple el formato.', cookie)
-            return False    #TODO pasar a None con las opcs
+            return None#, None    #TODO pasar a None con las opcs
         if cookie_y_valor[0] == '' or cookie_y_valor[1] == '':
             LOGGER.critical('Error con el formato de la cookie %s. Falta nombre o valor.', cookie)
-            return False
-    return lista_cookies
+            return None#, None
+        #dict_cookies[cookie_y_valor[0]] = cookie_y_valor[1]
+    #lista_cookies = cookies_.split(';')
+    return lista_cookies#dict_cookies, lista_cookies
+        #TODO return dict y usar .items
 
 def obtener_links_validos_desde_url(url_, cookies_=None):
     '''
@@ -237,11 +246,8 @@ def obtener_links_validos_desde_url(url_, cookies_=None):
     '''
     br = mechanize.Browser()
     configurar_navegador(br)
-    if not abrir_url_en_navegador(br, url_, cookies_) or not es_url_valida(url_) or _es_url_prohibida(url_):
-        #print "Error al abrir la URL."
-        #LOGGER.warning('Error con la URL %s.', url_)
-        #if cookies_ is not None:
-        #    print "Revise las cookies."
+    if not abrir_url_en_navegador(br, url_, cookies_) or not es_url_valida(url_) or es_url_prohibida(url_):
+        LOGGER.warning('Error al abrir la URL %s. Abortado.', url_)
         return dict()
     links = list()
     links_usados = list()
@@ -250,14 +256,14 @@ def obtener_links_validos_desde_url(url_, cookies_=None):
     #cookies = ["JSESSIONID=76E51C2E3C449FB79D5F032071E89D19.nodo01_t01", "SRV=nodo01_t01"]
     url_parseado = urlparse.urlparse(url_)
     _compilar_regex(r'(?!^//|\bhttp\b)[A-Za-z0-9_\-//]*\.\w*', #TODO test
-                    '(?!^//|\bhttp\b)([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
+                    r'(?!^//|\bhttp\b)([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
                     r'.*\b' + url_parseado.hostname.replace('www.', r'\.?') + r'\b(?!\.)'
                    )
     links.append(url_)
     for link in br.links():
         links.append(link.url)
     for link in links: #TODO: metdo multithread que init el Br y haga el resto. Quere ed links
-        if _es_url_prohibida(link):
+        if es_url_prohibida(link):
             continue
         link_valido = obtener_link_valido(url_, link, url_parseado.scheme)
         if not link_valido:
@@ -268,7 +274,7 @@ def obtener_links_validos_desde_url(url_, cookies_=None):
             try:
                 objeto_link.html = br.response().read()
             except httplib.IncompleteRead as error:
-                LOGGER.critical('Error al obtener el HTML de la URL: %s. Error: %s.', link_valido, error)
+                LOGGER.critical('Error al obtener el HTML de la URL: %s.\nError: %s.', link_valido, error)
                 #print error, link_valido
             objeto_link.scripts = obtener_scripts_desde_url(link_valido, url_parseado.scheme, objeto_link.html)
             objeto_link.entradas = obtener_entradas_desde_url(objeto_link.html)
@@ -276,16 +282,6 @@ def obtener_links_validos_desde_url(url_, cookies_=None):
             #links_utiles[link_valido] = objeto_link
             cola_links.put(objeto_link)
             LOGGER.info('URL agregada correctamente! %s.', link_valido)
-    #print len(links_usados)
-    '''
-    while not cola_links.empty():
-        objeto_link = cola_links.get()
-        print len(objeto_link.scripts)
-        print objeto_link.parametros
-        print objeto_link.entradas
-        print objeto_link.url
-    br.close()
-    '''
     return cola_links
 
 if __name__ == '__main__':
@@ -297,7 +293,6 @@ if __name__ == '__main__':
         sys.exit("No se puede acceder a la URL. Revise la conexion o el sitio web.")
     if len(sys.argv) > 2:
         cookies_ingresadas = sys.argv[2]
-        if not validar_formato_cookies(cookies_ingresadas):
+        if not obtener_cookies_validas(cookies_ingresadas):
             sys.exit('Error con las cookies ingresadas. Revise el formato "xxx=yyy;"')
     obtener_links_validos_desde_url(url_ingresada, cookies_ingresadas)
-    #obtener_scripts_desde_url(sys.argv[1])

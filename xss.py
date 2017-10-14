@@ -13,56 +13,81 @@ import logging
 import urllib2
 import httplib
 import Queue
+import re
+import hashlib
 import links
 import mechanize
-import selenium
-import re
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from selenium.common.exceptions import NoAlertPresentException
-from selenium.common.exceptions import NoSuchElementException
-from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.common.keys import Keys
+import bdd
 
 logging.config.fileConfig('log.ini')
 LOGGER = logging.getLogger('root')
+LOCK = threading.Lock()
+RE_DOMXSS_SOURCES = re.compile('(location\s*[\[.])|([.\[]\s*["\']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)')
+RE_DOMXSS_SINKS = re.compile('((src|href|data|location|code|value|action)\s*["\'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["\'\]]*\s*\()')
 
-blacklist = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
-             '.pdf', '.doc', '.docx', '.zip', '.rar', '.rss']
+COLA_SCRIPTS = Queue.Queue()
 
-LISTA_PAYLOADS = []
-RE_DOMXSS_SOURCES = re.compile("""/(location\s*[\[.])|([.\[]\s*["']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)/""")
-RE_DOMXSS_SINKS = re.compile("""/((src|href|data|location|code|value|action)\s*["'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["'\]]*\s*\()/""")   
+def script_analizado_previamente(script):
+    u'''
+    Devuelve si un script JS fue analizado previamente por pertenecer a una URL
+    que fue procesada anteriormente.
+    '''
+    try:
+        encontrado = False
+        hasher = hashlib.md5()
+        hasher.update(script)
+        md5_ = hasher.hexdigest()
+        with LOCK:
+            if md5_ in COLA_SCRIPTS.queue:
+                encontrado = True
+            else:
+                COLA_SCRIPTS.put(md5_)
+    except UnicodeEncodeError:
+        LOGGER.warning(u'Error al tratar de revisar si script ya había sido analizado previamente. Se analizará a continuación. \n')
+    finally:
+        return encontrado
 
 class Worker(threading.Thread):
     u'''
     Clase que instanciará los threads encargados de realizar el trabajo
+    de buscar las vulnerabilidades XSS.
     '''
-    def __init__(self, cola_links, cookies, *args):
+    def __init__(self, cola_links, lista_cookies, lista_payloads, db, analisis_reflected, analsis_dom):
         self.cola_links = cola_links
-        threading.Thread.__init__(self, *args)
+        self.lista_cookies = lista_cookies
+        self.lista_payloads = lista_payloads 
+        self.analisis_reflected = analisis_reflected
+        self.analsis_dom = analsis_dom
+        self.db = db
+        threading.Thread.__init__(self)
     def run(self):
-        '''
+        u'''
         Busca vulnerabilidades XSS en la URL y sus componenetes mientras haya URLs pendientes.
         '''
-        while not cola_links.empty():
+        while not self.cola_links.empty():
             link = self.cola_links.get(timeout=3)
-            LOGGER.info(u'Empieza el análisis con la URL: %s', link.url)
-            buscar_vulnerabilidad_xss(link, cookies)
-            if link.parametros:
-                LOGGER.info('Analizando parametros en lla misma URL: %s', link.url)    
-                inyectar_payload_en_url(link.url, link.parametros)
-            if link.scripts:
-                LOGGER.info('Buscando vulnerabilidades DOM Based estaticamente en la URL: %s', link.url)
-                buscar_xss_dom(link.scripts) #TODO ver duplicados
-            #TODO agregar a cola de vulenrables
-        LOGGER.info('Analisis finalizado de URL: %s', link.url)
+            LOGGER.info(u'Empieza el análisis con la URL: %s\n', link.url)
+            if self.analisis_reflected:
+                LOGGER.info(u'Empieza el análisis de XSS Reflected en la URL: %s \n', link.url)
+                vuln_reflected = buscar_vulnerabilidad_xss(link, self.lista_cookies, self.lista_payloads)
+                if vuln_reflected:
+                    for k in vuln_reflected:
+                        self.db.insertar_vulnerabilidad_reflected(link.url, "Reflected", "Entrada", k, vuln_reflected[k])
+                LOGGER.info(u'Fin del análisis de XSS Reflected en la URL: %s \n', link.url)
+            if self.analsis_dom:
+                if link.parametros:
+                    LOGGER.info(u'Empieza el análisis de parametros en la misma URL: %s \n', link.url)    
+                    inyectar_payload_en_url(link.url, link.parametros, self.lista_payloads)
+                    LOGGER.info(u'Fin del análisis de parámetros de la URL: %s \n', link.url)
+                if link.scripts:
+                    LOGGER.info(u'Empieza el análsis pasivo DOM Based XSS en la URL: %s \n', link.url)
+                    buscar_dom_xss(link.scripts) #TODO ver duplicados
+                    LOGGER.info(u'Fin del análsis pasivo DOM Based XSS en la URL: %s \n', link.url)
+            LOGGER.info(u'Fin del análisis de la URL: %s \n', link.url)
 
 def obtener_payloads():
     u'''
-    Devuelve la lista de payloads pasada a través de un archivo txt
+    Devuelve la lista de payloads obtenida a través de un archivo payloads.txt
     para facilitar su mantenimiento.
     '''
     lista_payloads = []
@@ -70,106 +95,101 @@ def obtener_payloads():
         with open('payloads.txt', 'r') as archivo_payloads:
             for linea in archivo_payloads.readlines():
                 lista_payloads.append(linea)
-    except EnvironmentError, error:
+    except Exception as error:
         LOGGER.critical('Error al cargar las payloads: %s', error)
     finally:
         return lista_payloads
-        
 
-def obtener_vulnerabilidades_xss_dom(linea, regex, tipo):
+def obtener_vulnerabilidades_dom_xss(linea, regex, tipo_regex):
     u'''
     Devuelve la lista de vulnerabilidades del tipo DOM Based encontradas
-    según la regex pasada (análisis pasivo de SINK o SOURCE) junto con su posición en la línea
-    del script proporcionado.
+    según la regex pasada (análisis pasivo de SINKS o SOURCES) junto con su posición
+    en la línea del script proporcionado.
     '''
     lista_vulnerabilidades = list()
     lista_posiciones = list()
     for patron in regex.finditer(linea, re.MULTILINE):
         for grupo in patron.groups():
             posicion = str(patron.span())
-            if grupo is not None and posicion not in lista_posiciones:
+            if grupo is not None and posicion not in lista_posiciones: #Para evitar multiples ocurrencias de la regex sobre lo mismo
                 lista_posiciones.append(posicion)
-                lista_vulnerabilidades.append(tipo + ' encontrado' + posicion + ': ' +  grupo)
+                lista_vulnerabilidades.append(tipo_regex + ' encontrado' + posicion + ': ' +  grupo)
+                LOGGER.debug('Posible vulnerabilidad DOM Based: %s.\n', grupo)
     return lista_vulnerabilidades
 
-def buscar_xss_dom(scripts):
+def buscar_dom_xss(scripts):
     u'''
-    Devuelve un diccionario con las vulnerabilidades DOM XSS encontradas a través de una analisis 
-    estatico con su numero de linea y su posicion de inicio y fin de la misma. 
+    Devuelve un diccionario con las posibles "vulnerabilidades" DOM Based XSS encontradas en cada script
+    a través de una análisis estático con su número de línea, su posición de inicio y la de fin. 
     '''
-    nro_linea = 0
-    dict_xss_dom = dict()
-    for script in scripts: #TODO ver que no haga 2 veces el mismo archio
-        lista_xss_dom = list()
+    dict_dom_xss = dict()
+    for script in scripts:
+        if script_analizado_previamente(script):
+            LOGGER.debug('Existe un script analizado previamente en otra URL.\n')
+            continue
+        nro_linea = 0
+        lista_dom_xss = list()
         for linea in script.split('\n'):
             nro_linea += 1
-            lista_xss_dom = obtener_vulnerabilidades_xss_dom(linea, RE_DOMXSS_SOURCES, 'Source')
-            lista_xss_dom += obtener_vulnerabilidades_xss_dom(linea, RE_DOMXSS_SINKS, 'Sink')
-            
-            if lista_xss_dom:
-                dict_xss_dom[nro_linea] = lista_xss_dom
-                LOGGER.debug('Posible vulnerabilidad DOM Based en la URL')
-    # print dict_xss_dom
-    return dict_xss_dom
+            lista_dom_xss = obtener_vulnerabilidades_dom_xss(linea, RE_DOMXSS_SOURCES, 'Source')
+            lista_dom_xss += obtener_vulnerabilidades_dom_xss(linea, RE_DOMXSS_SINKS, 'Sink')
+            if lista_dom_xss:
+                dict_dom_xss[nro_linea] = lista_dom_xss
+                LOGGER.info('Posible vulnerabilidad DOM Based en la URL.\n')
+    return dict_dom_xss #TODO en vez de devolver, grabar en la BDD con 1 tab
 
 def detectar_xss_reflejado(br, payload):
     u'''
-    Devuelve si existe una vulnerabilidad XSS REFLECTED a partir de encontrar
-    el payoad previamente ingresado en el HTML de la respuesta.
+    Devuelve si el payload previamente ingresado se encuentra en el HTML de la respuesta.
     '''
     try:
-        if payload in br.response().read(): #TODO: XSS reflejado
-            return True
-        return False
+        return payload in br.response().read()
     except httplib.IncompleteRead as error:
         LOGGER.critical('Error al obtener respuesta de la URL. Error: %s', error)
         return False
 
 def buscar_xss_reflejado(br, payload, entrada, form):
-    #for paylaod in LISTA_PAYLOADS:
-        #print parametro.type
-        #os.system('pause')
-    #print br
-    inyectar_payload(br, payload, entrada)
-    #br.form[entrada['id']] = payload #TODO ver lo del name e id
-    #br.submit()
-    if payload in br.response().read():#detectar_xss_reflejado(br, payload):
-        #TODO log, bdd, etc.
-        print "XSS encontrado: ",
-        br.back() #TODO: Ver si srive afuera del if anterior este bloque
+    u'''
+    Devuelve si existe una vulnerabilidad XSS REFLECTED a partir de encontrar
+    el payload previamente ingresado en el HTML de la respuesta.
+    '''
+    try:
+        encontrado = False
+        inyectar_payload_en_entrada(br, payload, entrada)
+        if detectar_xss_reflejado(br, payload):
+            encontrado = True
+        br.back()
         br.select_form(nr=form)
-        '''
-        if payload in br.response().read():#detectar_xss_reflejado(br, payload):
-            print "Stored"      #XSS encontrado al inyectar payload y luego de esto#TODO
-            LOGGER.info('Vulnerabilidad Stored XSS en la URL.')
-            #TODO volar el Stored falopa
-            return True
-        else:
-            LOGGER.info('Vulnerabilidad Reflected XSS en la URL.')
-            print "Reflejado"   #XSS encontrado solo al inyectar payload #TODO
-            return True'''
-    else:
-        return None
+        return encontrado
+    except Exception:
+        return encontrado
+
 
 def buscar_xss_almacenado(driver, payload, entrada):
-
+    u'''
+    Devuelve si existe una vulnerabilidad XSS STORED a partir de encontrar
+    la ejecucuión del script del payload en un navegador web sin encontrarlo
+    en el html de la respuesta.
+    '''
     try:
         if entrada.has_attr('id'):
-            entrada_elem = driver.find_element_by_id(entrada['id']) #TODO ver id y name
+            entrada_elem = driver.find_element_by_id(entrada['id'])
             return detectar_xss_almacenado(driver, entrada_elem, payload)
         else:
-            if entrada.has_attr['name']:
+            if entrada.has_attr('name'):
                 entrada_elem = driver.find_element_by_name(entrada['name'])
+                return detectar_xss_almacenado(driver, entrada_elem, payload)
     except (NoSuchElementException, KeyError) as error:
         LOGGER.critical('Error al procesar: %s', error)
         return None
     except TypeError as error:
-        LOGGER.critical('Error al procesa el elemento: %s', entrada)
+        LOGGER.critical('Error al procesar el elemento: %s', entrada)
         return None
     
 
 def detectar_xss_almacenado(driver, parametro, payload):
-    '''
+    u'''
+    Devuelve si encuentra la ejecucuión del script del payload en un navegador web.
     '''
     parametro.send_keys(payload)
     parametro.submit()
@@ -177,165 +197,201 @@ def detectar_xss_almacenado(driver, parametro, payload):
         WebDriverWait(driver, 3).until(EC.alert_is_present(),
                                     'Timed out waiting for PA creation ' +
                                     'confirmation popup to appear.')
-        #os.system('pause')
         driver.switch_to.alert.accept()
-        print('XSS STORED')
         return True
-    #    os.system('pause')
-    except NoAlertPresentException:
-        return None
-    except TimeoutException: #TODO mejorar aca
-        return None
-    except:
-        return None
+    except (NoAlertPresentException, TimeoutException) as error:
+        return False
+    except Exception:
+        LOGGER.critical('Error en el navegador: %s', error)
+        return False
 
-def inyectar_payload(br, payload, entrada): #NO hace falta determinar si es get o post.
+def inyectar_payload_en_entrada(br, payload, entrada):
+    '''
+    Ingresa un valor a cierto parámetro de entrada de una URL (a partir de su ID o NAME)
+    y realiza la petición.
+    '''
     try:
-        if entrada.has_attr('id'):
-            br.form[entrada['id']] = payload #TODO ver lo del name e id
+        if entrada.has_attr('name'):
+            br.form[entrada['name']] = payload #TODO ver lo del name e id
             br.submit()
         else:
-            if entrada.has_attr('name'):
-                br.form[entrada['name']] = payload #TODO ver lo del name e id
+            if entrada.has_attr('id'):
+                br.form[entrada['id']] = payload #TODO ver lo del name e id
                 br.submit()
-    except (ValueError, urllib2.URLError) as error:
-        print error
-        LOGGER.warning('Error al intentar explotar : %s', entrada)
-        print 'Error al enviar el control: ', entrada
+    except (ValueError, urllib2.URLError, TypeError) as error:
+        LOGGER.debug('Error al intentar explotar : %s.\nError: %s.', entrada, error)
+        raise error
 
-def inyectar_payload_en_url(url_, parametros):
-    br = mechanize.Browser()#factory=mechanize.RobustFactory())  #TODO factory=mechanize.RobustFactory()
+def inyectar_payload_en_url(url_, parametros, lista_payloads):
+    u'''
+    Por cada uno de los parámetros encontrados en la URL, los empieza a reemplazar de a uno
+    por cada una de los payloads. Realiza una petición con la nueva URL y revisa si se
+    encuentra en su respuesta el payload ingresado previamente. 
+    '''
+    br = mechanize.Browser()
     links.configurar_navegador(br)
     url_parseado = list(urlparse.urlparse(url_))
     for indice_parametro, valores in parametros.items():
         for indice_valor, valor in enumerate(valores):
-            for payload in LISTA_PAYLOADS:
+            for payload in lista_payloads:
                 nuevos_valores = dict(parametros)
-                nuevos_valores[indice_parametro][indice_valor] = valor + urllib.quote_plus(payload)
-                #print nuevos_valores
-                url_parseado[4] = urllib.urlencode(nuevos_valores)
+                nuevos_valores[indice_parametro][indice_valor] = valor + payload #urllib.quote_plus(payload)
+                url_parseado[4] = urllib.urlencode(nuevos_valores, doseq=True)
                 nueva_url = urlparse.urlunparse(url_parseado)
-                print nueva_url
                 if links.abrir_url_en_navegador(br, nueva_url):
                     if detectar_xss_reflejado(br, payload):
-                        print 'XSS by URL', payload
-                        LOGGER.info('Vulnerabilidad Reflected XSS en parametros URL.')
-                        #os.system('pause')
+                        LOGGER.info(u'VULNERABLE!!! DOM Based XSS en parámetros URL.\n')
+                        return True
+    return False
 
-def buscar_vulnerabilidad_xss(objeto_link, cookies):
+def buscar_vulnerabilidad_xss(objeto_link, lista_cookies, lista_payloads):
+    '''
+    Devuelve las vulnerabilidades encontradas en una URL.
+    '''
     br = mechanize.Browser()#factory=mechanize.RobustFactory())  #TODO factory=mechanize.RobustFactory()
     links.configurar_navegador(br)
-    lista_cookies, dict_cokies = links.validar_formato_cookies(cookies)
     if not links.abrir_url_en_navegador(br, objeto_link.url, lista_cookies):
-        print "Error al abrir la URL." #TODO no deberia pasar esto
-        if cookies is not None:
-            print "Revise las cookies."
-        return False
+        LOGGER.critical('Error al abrir la URL: %s', objeto_link.url)
+        return None
+    entrada_y_payload = dict()
+    '''
     try:
-        driver = webdriver.Firefox()    #TODO dividir esto 
-        driver.get(objeto_link.url) #TODO es solo una vez esto
-        if cookies is not None:
+        driver = webdriver.Firefox()
+        driver.get(objeto_link.url)
+        if dict_cokies is not None:
+            #dict_cokies = links.validar_formato_cookies(cookies)
+            cookies = driver.get_cookies()
+            driver.delete_all_cookies()
+            print "cookies", dict_cokies 
             driver.add_cookie(dict_cokies)
     except selenium.common.exceptions.WebDriverException as error:
         LOGGER.critical('Error al carcar el webdriver. Error: %s', error)
-    forms_y_entradas = objeto_link.entradas
-    for form in forms_y_entradas:     # if a form exists, submit it
-        #params = form#list(br.forms())[0]    # our form
-        br.select_form(nr=form)    # submit the first form
-        lista_entradas = forms_y_entradas[form]
-        #print 'Form: ', form
-        for entrada in lista_entradas:
-            p = 0
-            encontrado = False          
-            while p < len(LISTA_PAYLOADS) and not encontrado:
-                payload = LISTA_PAYLOADS[p]
-                resultado = buscar_xss_reflejado(br, payload, entrada, form)
-                p += 1
-                if resultado:
-                    print 'Encontradoooooo'
-                    encontrado = True
-                else:
-                    br.back()
-                    br.select_form(nr=form)
-                    resultado = buscar_xss_almacenado(driver, payload, entrada)
-                    if resultado:
-                        print 'Encontradoooo2'
-                        encontrado = True
-    br.close()
-    driver.quit()
+    '''
+    try:
+        forms_y_entradas = objeto_link.entradas
+        for form in forms_y_entradas:
+            br.select_form(nr=form)
+            lista_entradas = forms_y_entradas[form]
+            for entrada in lista_entradas:
+                p = 0
+                vulnerable = False
+                while p < len(lista_payloads) and not vulnerable:
+                    payload = lista_payloads[p]
+                    vulnerable = buscar_xss_reflejado(br, payload, entrada, form)
+                    p += 1
+                    if vulnerable:
+                        entrada_y_payload[str(entrada)] = payload
+                        LOGGER.info('VULNERABLE!! XSS Reflected:\nEntrada: %s \nPayload: %s', entrada, payload)
 
-if __name__ == '__main__':
-    LISTA_PAYLOADS = obtener_payloads()
-    if LISTA_PAYLOADS == []:
-        LOGGER.critical('Error al cargar las payloads: Revise el archivo payloads.txt.')
-        sys.exit(1)
-    if not links.es_url_valida(sys.argv[1]): #TODO: chequear url antes de la lista o cuando se va a hacer lo de xss?
-        LOGGER.critical('Esquema de URL invalido. Ingrese nuevamente.')
-        sys.exit(1)
-    if not links.se_puede_acceder_a_url(sys.argv[1]):
-        LOGGER.critical('No se puede acceder a la URL. Revise la conexion o el sitio web.')
-        sys.exit(1)
-    cookies = None
-    if sys.argv[2]:
-        cookies = sys.argv[2]
-    cola_links = links.obtener_links_validos_desde_url(sys.argv[1], cookies)
-    threads = []
-    LOGGER.info('EMPIEZA el programa')
-    for i in range(1):
-        worker = Worker(cola_links, cookies)
-        threads.append(worker)
-        #cworker.setDaemon(True)
-        worker.start()
 
-    
-    for t in threads:
-        t.join()
+                    '''
+                    else:
+                        #br.back()
+                        #br.select_form(nr=form)
+                        driver.get(objeto_link.url)
+                        resultado = buscar_xss_almacenado(driver, payload, entrada)
+                        if resultado:
+                            LOGGER.info('VULNERABLE!! XSS Stored: Entrada: %s Payload: %s', entrada, payload)
+                            encontrado = True'''
+        '''
+        driver.quit()'''
+    except Exception as error:
+        LOGGER.critical(u'Error al procesar URL: %s.\nError: %s\n', objeto_link.url, error)
+    finally:
+        br.close()
+        return entrada_y_payload
 
-    print 'All work is done'
-            #buscar_vulnerabilidad_xss(objeto_link, payloads) #TODO ver si pasar objeto o partes
-        #os.system('pause')
+
         
 def main():
-    descripcion = ''
-    """
-    """
-    parser = argparse.ArgumentParser(description=descripcion, prog='PROG', usage='%(prog)s [options]', epilog='')
-    parser.add_argument('-u',
-                        '--url',
-                        metavar='http://example.com',
-                        type=str,
-                        help='La URL en la cual se basara el analisis.',
-                        action='store',
-                        dest='url'
-                        )
+    descripcion =   u'''
+                    Bienvenido!
+                    '''
+    epilogo = u'''
+              En caso de que no se especifique el tipo de análisis, se hará por defecto
+              solamente del tipo XSS Reflected.
+              '''
+    parser = argparse.ArgumentParser(description=descripcion,
+                                     version='1.0',
+                                     usage='%(prog)s [options]',
+                                     epilog=epilogo)
     parser.add_argument('-c',
                         '--cookies',
-                        metavar='Nombre=valor Nombre=valor',
+                        metavar='Nombre=valor;Nombre=valor',
                         type=str,
-                        nargs='*',
+                        #nargs='*',
                         help='Las cookies para la URL ingresada.',
                         action='store',
                         dest='cookies'
                         )#TODO testear cookies
     parser.add_argument('-d',
                         '--dom',
-                        help='Seleccionar un analisis estatico DOM Based XSS.',
+                        help=u'Análisis estatico DOM Based XSS de los scripts encontrados en la URL.',
                         action='store_true',
                         dest='dom'
                         )
-    
-    parser.add_argument('-s',
-                        '--simple',
-                        help='Seleccionar un analisis XSS Reflected, Stored y DOM Based.',
+    parser.add_argument('-r',
+                        '--reflected',
+                        help=u'Seleccionar un análisis XSS Reflected.',
                         action='store_true',
-                        dest='reflected'
+                        dest='reflected',
+                        default=True
                         )
+    obligatorios = parser.add_argument_group('required named arguments')
+    obligatorios.add_argument('-u',
+                              '--url',
+                              metavar='http://example.com',
+                              type=str,
+                              help=u'La URL en la cual se basara el análisis.',
+                              action='store',
+                              dest='url',
+                              required=True
+                              )
     
-    parser.add_argument('-t',
-                        '--threads',
-                        metavar='N',
-                        type=int,
-                        help='La cantidad de threads para realizar la busqueda de vulnerabilidades.',
-                        action='store',
-                        dest='threads'
-                        )
+    obligatorios.add_argument('-t',
+                              '--threads',
+                              metavar='N',
+                              type=int,
+                              help=u'La cantidad de threads para realizar la búsqueda de vulnerabilidades.',
+                              action='store',
+                              dest='threads',
+                              required=True
+                              )
+    args = parser.parse_args()
+    if not links.es_url_valida(args.url) or links.es_url_prohibida(args.url) or not links.se_puede_acceder_a_url(args.url):
+        LOGGER.critical('Revise la URL ingresada.')
+        sys.exit(1)
+    cookies_validas = None
+    if args.cookies:
+        cookies_validas = links.obtener_cookies_validas(args.cookies)
+        if not cookies_validas:
+            LOGGER.critical('Revise las cookies ingresadas.')
+            sys.exit(1)
+    if args.threads < 1 or args.threads > 15:
+        LOGGER.critical('Revise la cantidad de threads ingresada.')
+        sys.exit(1)
+    lista_payloads = obtener_payloads()
+    if not lista_payloads:
+        LOGGER.critical('Revise el archivo payloads.txt.')
+        sys.exit(1)
+    try:
+        db = bdd.BDD('bdd.db', lista_payloads)
+    except:
+        LOGGER.critical('Error con la BDD.')
+        sys.exit(1)
+    LOGGER.info('Empieza el programa!\n\n')
+    LOGGER.info(u'Empieza la obtención de datos de la URL: %s \n', args.url)
+    cola_links = links.obtener_links_validos_desde_url(args.url, cookies_validas)
+    LOGGER.info(u'Fin de la obtención de la URL: %s \n', args.url)
+    threads = []
+    for i in range(args.threads):
+        worker = Worker(cola_links, cookies_validas, lista_payloads, db, args.reflected, args.dom)
+        threads.append(worker)
+        #cworker.setDaemon(True)
+        worker.start()
+    for t in threads:
+        t.join()
+    LOGGER.info('\n\nFin el programa!')
+
+if __name__ == '__main__':
+    main()    

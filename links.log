@@ -497,3 +497,113 @@
 2017-10-10 22:07:20,003 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
 2017-10-10 22:07:20,756 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
 2017-10-10 22:07:20,756 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-11 09:48:43,858 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 09:48:44,046 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 09:48:44,217 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 09:49:07,951 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 09:49:08,122 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 09:49:11,279 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 10:16:54,821 - links - WARNING - Error al acceder a la URL http://dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 10:17:04,046 - links - WARNING - Error al acceder a la URL https://dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 10:23:31,694 - links - WARNING - Error al acceder a la URL https://www.dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 10:23:38,213 - links - WARNING - Error al acceder a la URL http://www.dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 10:23:44,338 - links - WARNING - Error al acceder a la URL http://dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 10:23:50,515 - links - WARNING - Error al acceder a la URL https://dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 10:28:32,783 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 10:28:32,986 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 10:28:33,142 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 10:29:04,841 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 10:29:04,997 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 10:29:05,200 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 10:32:01,677 - links - WARNING - Error al acceder a la URL https://dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 11:18:20,045 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:18:20,220 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:18:20,365 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:18:42,539 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:18:42,696 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:18:42,852 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:19:05,950 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:19:06,107 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:19:06,263 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:25:13,532 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:25:13,703 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:25:13,875 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:25:42,065 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:25:42,223 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:25:42,378 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:26:10,165 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:26:13,322 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:26:13,513 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:31:09,882 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:31:10,107 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:31:10,263 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:31:33,141 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:31:33,299 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:31:33,454 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:31:56,369 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:31:56,823 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:31:56,996 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:41:19,907 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:41:20,062 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:41:20,250 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:41:46,609 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:41:46,724 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:41:46,878 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:42:12,049 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:42:12,206 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:42:12,361 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:53:50,740 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:53:50,943 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:53:51,145 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27ayuda%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:54:19,664 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:54:19,822 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:54:19,993 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27registrarse%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 11:54:44,592 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%255C%2522%253E%253CimG%252FsRc%253Dl%2BoNerrOr%253D%2528prompt%2529%2528%2529%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:54:44,750 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253C%2521--%253CiMg%2BsRc%253D--%253E%253Cimg%2Bsrc%253Dx%2BoNERror%253D%2528prompt%2529%2560%2560%2Bx%253E%2522%252C%250A%27%5D. Abortado.
+2017-10-11 11:54:47,903 - links - WARNING - Error al abrir la URL http://alumno2.unlam.edu.ar/index.jsp?pageLand=%5B%27recuperaclave%2522%253CdeTails%2BoNToggle%253Dconfi%255Cu0072m%2528%2529%253E%2522%252C%27%5D. Abortado.
+2017-10-11 21:55:30,187 - links - WARNING - Error al acceder a la URL http://unlam.edu.ar. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-11 23:07:38,854 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-11 23:07:39,618 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-11 23:07:39,618 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-11 23:12:34,336 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-11 23:12:35,289 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-11 23:12:35,289 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-11 23:12:55,421 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-11 23:12:56,155 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-11 23:12:56,155 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-11 23:13:55,617 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-11 23:13:56,335 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-11 23:13:56,335 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-11 23:15:45,464 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-11 23:15:46,339 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-11 23:15:46,339 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-11 23:22:52,959 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-11 23:22:53,865 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-11 23:22:53,865 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-11 23:26:39,836 - links - WARNING - Error al acceder a la URL https://cart.dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 23:26:53,448 - links - WARNING - Error al acceder a la URL https://cart.dx.com. Error: HTTP Error 403: Forbidden
+2017-10-11 23:27:12,362 - links - WARNING - Error al acceder a la URL https://cart.dx.com/. Error: HTTP Error 403: Forbidden
+2017-10-12 10:24:21,742 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-12 10:24:22,631 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-12 10:24:22,631 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-12 10:41:43,111 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-12 10:41:44,032 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-12 10:41:44,032 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-12 10:44:34,384 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-12 10:44:35,104 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-12 10:44:35,104 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-12 10:45:14,719 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-12 10:45:15,546 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-12 10:45:15,546 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-12 11:18:25,065 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-12 11:18:25,951 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-12 11:18:25,951 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-12 11:18:42,765 - links - WARNING - Error al acceder a la URL https://sitioquenoesasfasdasda.org. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-12 11:18:43,466 - links - CRITICAL - Error con el formato de la cookie . No cumple el formato.
+2017-10-12 11:18:43,467 - links - CRITICAL - Error con el formato de la cookie DXGlobalization_lang=. Falta nombre o valor.
+2017-10-12 13:14:00,539 - links - WARNING - Error al acceder a la URL http://ici.unlam.edu.ar/from_moea.php. Error: HTTP Error 404: Not Found
+2017-10-12 13:37:05,101 - links - WARNING - Error al acceder a la URL http://unlam.edu.ar. Error: <urlopen error [Errno 11001] getaddrinfo failed>
+2017-10-12 14:24:43,457 - links - CRITICAL - Error con el formato de la cookie ls. No cumple el formato.
+2017-10-12 19:20:50,335 - links - WARNING - Error al acceder a la URL https://docs.python.org/3/contentes.html. Error: HTTP Error 404: Not Found
+2017-10-14 00:52:36,671 - links - WARNING - Error al acceder a la URL https://xss-game.appspot.com/levelframe. Error: HTTP Error 500: Internal Server Error
+2017-10-14 00:53:15,187 - links - WARNING - Error al acceder a la URL https://xss-game.appspot.com/levelframe. Error: HTTP Error 500: Internal Server Error
