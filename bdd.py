@@ -4,12 +4,18 @@
 import os
 import sqlite3
 import logging
-from logging import config
 
 logging.config.fileConfig('log.ini')
 LOGGER = logging.getLogger('bdd')
 
+TIPO_XSS = ['Reflected', 'DOM Based']
+TIPO_ELEMENTO = ['Entrada', 'Parametro URL', 'Sink/Source']
+
 class BDD(object):
+    '''
+    Objeto que mantendrá la conexión con la BDD. Además, realiza la creación de la misma,
+    de sus tablas y la carga inicial de datos.
+    '''
     def __init__(self, ruta_archivo, lista_payload):
         try:
             os.remove(ruta_archivo)
@@ -20,18 +26,17 @@ class BDD(object):
         LOGGER.info('BDD creada!')
         self.conn = conn
         self.archivo = ruta_archivo
-        self.cursor = conn.cursor()
+        #self.cursor = conn.cursor()
         try:
+            self.conn.text_factory = str
             self.__create_table()
             LOGGER.debug('Tablas creadas en BDD.')
-            self.__insertar_en_tabla_xss('Reflected')
-            self.__insertar_en_tabla_xss('DOM Based')
-            self.__insertar_en_tabla_elemento('Entrada')
-            self.__insertar_en_tabla_elemento('Parametro URL')
-            self.__insertar_en_tabla_elemento('Sink')
-            self.__insertar_en_tabla_elemento('Source')
-            for indice, valor in enumerate(lista_payload):
-                self.__insertar_en_tabla_payload(valor)
+            for xss in TIPO_XSS:
+                self.__insertar_en_tabla_xss(xss)
+            for elemento in TIPO_ELEMENTO:
+                self.__insertar_en_tabla_elemento(elemento)
+            for payload in lista_payload:
+                self.__insertar_en_tabla_payload(payload)
             LOGGER.info('Datos iniciales cargados en BDD.')
         except sqlite3.Error as error:
             LOGGER.critical('Error al cargar tablas y/o datos.\nError: %s', error)
@@ -43,77 +48,155 @@ class BDD(object):
         Función para crear las tablas y llenar los datos estáticos de las mismas.
         '''
         try:
-            self.cursor.execute('CREATE TABLE xss(id INTEGER PRIMARY KEY AUTOINCREMENT,tipo TEXT);')
-            self.cursor.execute('CREATE TABLE payload(id INTEGER PRIMARY KEY AUTOINCREMENT,tipo TEXT);')
-            self.cursor.execute('CREATE TABLE elemento(id INTEGER PRIMARY KEY AUTOINCREMENT,tipo TEXT);')
-            self.cursor.execute('CREATE TABLE posicion(id INTEGER PRIMARY KEY AUTOINCREMENT,inicio INTEGER, fin INTEGER, linea TEXT);')
-            self.cursor.execute('CREATE TABLE script(id INTEGER PRIMARY KEY AUTOINCREMENT,script TEXT);')
-            self.conn.commit()
-        except sqlite3.Error as error:
-            LOGGER.debug('Error al crear tablas.\nError: %s', error)
-            raise
-        try:
-            self.cursor.execute('CREATE TABLE vulnerabilidad(id INTEGER PRIMARY KEY AUTOINCREMENT,'\
-                                                            'url TEXT,'\
-                                                            'xss_id INTEGER,'\
-                                                            'elemento_id INTEGER,'\
-                                                            'elemento TEXT,'\
-                                                            'payload_id INTEGER,'\
-                                                            'script_id INTEGER,'\
-                                                            'posicion_id INTEGER,'\
-                                                            'FOREIGN KEY(xss_id) REFERENCES xss(id),'\
-                                                            'FOREIGN KEY(elemento_id) REFERENCES elemento(id),'\
-                                                            'FOREIGN KEY(payload_id) REFERENCES payload(id),'\
-                                                            'FOREIGN KEY(posicion_id) REFERENCES posicion(id)'\
-                                                            'FOREIGN KEY(script_id) REFERENCES script(id)'\
-                                                            ');'\
-                                )
-            self.conn.commit()
+            with self.conn:
+                self.conn.execute('CREATE TABLE xss('\
+                                                    'id INTEGER PRIMARY KEY AUTOINCREMENT,'\
+                                                    'tipo TEXT'\
+                                                    ');'
+                                 )
+                self.conn.execute('CREATE TABLE payload('\
+                                                        'id INTEGER PRIMARY KEY AUTOINCREMENT,'\
+                                                        'tipo TEXT'\
+                                                        ');'
+                                 )
+                self.conn.execute('CREATE TABLE elemento('\
+                                                         'id INTEGER PRIMARY KEY AUTOINCREMENT,'\
+                                                         'tipo TEXT'\
+                                                         ');'
+                                 )
+                #self.conn.execute('CREATE TABLE posicion(id INTEGER PRIMARY KEY AUTOINCREMENT,inicio INTEGER, fin INTEGER, linea TEXT);')
+                self.conn.execute('CREATE TABLE script('\
+                                                       'id INTEGER PRIMARY KEY AUTOINCREMENT,'\
+                                                       'script TEXT'\
+                                                       ');'
+                                 )
+                self.conn.execute('CREATE TABLE vulnerabilidad('\
+                                                               'id INTEGER PRIMARY KEY AUTOINCREMENT,'\
+                                                               'url TEXT,'\
+                                                               'xss_id INTEGER,'\
+                                                               'elemento_id INTEGER,'\
+                                                               'elemento TEXT,'\
+                                                               'payload_id INTEGER,'\
+                                                               'script_id INTEGER,'\
+                                                               #'posicion TEXT,'\
+                                                               'linea TEXT,'\
+                                                               #'posicion_id INTEGER,'\
+                                                               'FOREIGN KEY(xss_id) REFERENCES xss(id),'\
+                                                               'FOREIGN KEY(elemento_id) REFERENCES elemento(id),'\
+                                                               'FOREIGN KEY(payload_id) REFERENCES payload(id),'\
+                                                               #'FOREIGN KEY(posicion_id) REFERENCES posicion(id)'\
+                                                               'FOREIGN KEY(script_id) REFERENCES script(id)'\
+                                                               ');'
+                                    )
+                self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al crear tabla principal.\nError: %s', error)
             raise
     def __insertar_en_tabla_payload(self, payload):
+        u'''
+        Inserta los datos en la tabla 'payload'.
+        '''
         try:
-            self.cursor.execute("INSERT INTO payload (tipo) VALUES (?)", (payload,))
-            self.conn.commit()
+            with self.conn:
+                self.conn.execute("INSERT INTO payload (tipo) VALUES (?)", (payload,))
+                self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al insertar en tabla de payload.\nError: %s', error)
             raise
 
     def __insertar_en_tabla_xss(self, xss):
+        u'''
+        Inserta los datos en la tabla 'xss'.
+        '''
         try:
-            self.conn.execute("INSERT INTO xss (tipo) VALUES (?)", (xss,))
-            self.conn.commit()
+            with self.conn:
+                self.conn.execute("INSERT INTO xss (tipo) VALUES (?)", (xss,))
+                self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al insertar en tabla de xss.\nError: %s', error)
             raise
     
     def __insertar_en_tabla_elemento(self, elemento):
+        u'''
+        Inserta los datos en la tabla 'elemento'.
+        '''
         try:
-            self.conn.execute("INSERT INTO elemento (tipo) VALUES (?)", (elemento,))
-            self.conn.commit()
+            with self.conn:
+                self.conn.execute("INSERT INTO elemento (tipo) VALUES (?)", (elemento,))
+                self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al insertar en tabla de elemento.\nError: %s', error)
             raise
     
-    def insertar_vulnerabilidad_reflected(self, url, tipo_xss, tipo_elemento, elemento, payload):
+    def insertar_vulnerabilidad_reflected(self, url, elemento, payload):
+        u'''
+        Inserta los datos en la tabla 'vulnerabilidad' con su tipo de elemento vulnerable como 'entrada'.
+        '''
+        self.__insertar_vulnerabilidad_reflected(url, elemento, TIPO_ELEMENTO[0], payload)
+    
+    def insertar_vulnerabilidad_reflected_url(self, url, elemento, payload):
+        u'''
+        Inserta los datos en la tabla 'vulnerabilidad' con su tipo de elemento vulnerable como 'parámetro URL'.
+        '''
+        self.__insertar_vulnerabilidad_reflected(url, elemento, TIPO_ELEMENTO[1], payload)
+
+    def __insertar_vulnerabilidad_reflected(self, url, elemento, tipo_elemento, payload):
+        u'''
+        Inserta los datos en la tabla 'vulnerabilidad'.
+        '''
         try:
-            self.conn.execute("INSERT INTO vulnerabilidad (url, xss_id, elemento_id, elemento, payload_id)"\
-                              "VALUES( ?, "\
-                                      "(SELECT id FROM xss WHERE tipo = ?),"\
-                                      "(SELECT id FROM elemento WHERE tipo = ?),"\
-                                      "?,"\
-                                      "(SELECT id FROM payload WHERE tipo = ?)"\
-                                      ")", (url, tipo_xss, tipo_elemento, elemento, payload,))
-            self.conn.commit()
+            with self.conn:
+                self.conn.execute("INSERT INTO vulnerabilidad (url, xss_id, elemento_id, elemento, payload_id)"\
+                                  "VALUES( ?, "\
+                                          "(SELECT id FROM xss WHERE tipo = ?),"\
+                                          "(SELECT id FROM elemento WHERE tipo = ?),"\
+                                          "?,"\
+                                          "(SELECT id FROM payload WHERE tipo = ?)"\
+                                          ")", (url, TIPO_XSS[0], tipo_elemento, elemento, payload,))
+                self.conn.commit()
+        except sqlite3.Error as error:
+            LOGGER.debug('Error al insertar en tabla de vulnerabilidad.\nError: %s', error)
+            raise
+    
+
+    def insertar_vulnerabilidad_dom(self, url, elemento, script, linea):
+        u'''
+        Inserta los datos en la tabla 'vulnerabilidad' con su tipo de xss igual a DOM Based'.
+        '''
+        try:
+            with self.conn:
+                cur = self.conn.cursor() 
+                cur.execute("SELECT id FROM script WHERE script= ?", (script,))
+                #resultado = cur.fetchone()
+                resultado = cur.fetchone()
+                if resultado:
+                    script_id = resultado[0]
+                else:
+                    cur.execute("INSERT OR IGNORE INTO script (script) VALUES (?)", (script,))
+                    self.conn.commit()
+                    script_id = cur.lastrowid
+                #cur.execute("INSERT OR IGNORE INTO posicion (inicio, fin, linea) VALUES (?,?,?)", (inicio, fin, linea))
+                #self.conn.commit()
+                cur.execute("INSERT INTO vulnerabilidad (url, xss_id, elemento_id, elemento, script_id, linea)"\
+                                  "VALUES( ?, "\
+                                          "(SELECT id FROM xss WHERE tipo = ?),"\
+                                          "(SELECT id FROM elemento WHERE tipo = ?),"\
+                                          "?,"\
+                                          "?,"\
+                                          "?"\
+                                          ")", (url, TIPO_XSS[1], TIPO_ELEMENTO[2], elemento, script_id, linea,))
+                self.conn.commit()
         except sqlite3.Error as error:
             LOGGER.debug('Error al insertar en tabla de elemento.\nError: %s', error)
             raise
+        finally:
+            cur.close()
 
 
 if __name__ == '__main__':
     lista = ['''"\"><imG/sRc=l oNerrOr=(prompt)() x>",''',
              '''"<!--<iMg sRc=--><img src=x oNERror=(prompt)`` x>",''',
-             '''"<deTails oNToggle=confi\u0072m()>",''']
+             u'''"<deTails oNToggle=confi\u0072m()>",''']
     bdd = BDD('bdd.db', lista)
-    bdd.insertar_vulnerabilidad_reflected("asd.com", "Reflected", "Entrada", "<nombre>",'"\"><imG/sRc=l oNerrOr=(prompt)() x>",')
+    bdd.insertar_vulnerabilidad_reflected("asd.com", "<nombre>",'"\"><imG/sRc=l oNerrOr=(prompt)() x>",')
+    bdd.insertar_vulnerabilidad_dom("asd.com", ".document",'href.document', '200')

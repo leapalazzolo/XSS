@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import unittest
 import mechanize
 import links
@@ -7,9 +10,7 @@ class LinksTest(unittest.TestCase):
 
 
     def test_obtener_parametros_de_la_url(self):
-        '''
-        Test de la funcion obtener_parametros_de_la_url
-        '''
+        
         url_unlam = 'http://www.unlam.edu.ar/index.php'
         url_unlam_con_parametros = 'http://www.unlam.edu.ar/index.php?seccion=-1&accion=buscador'
         url_google_con_parametros = 'https://www.google.com.ar/?gfe_rd=cr&dcr=0&ei=eUXWWZPVGcb_8AfYso_wAw&gws_rd=ssl'
@@ -36,7 +37,7 @@ class LinksTest(unittest.TestCase):
         scripts_blogger_2 = archivo_scripts_blogger_2.read()
         lista_scripts_blogger = [str(scripts_blogger_1), str(scripts_blogger_2)]
         links._compilar_regex(r'(?!^//|\bhttp\b)[A-Za-z0-9_\-//]*\.\w*', #TODO test
-                              '(?!^//|\bhttp\b)([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
+                              r'(?!^//|\bhttp\b)([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
                               r'.*\b' + 'www.blogger.com'.replace('www.', r'\.?') + r'\b(?!\.)'
                              )
         self.assertNotEqual(links.obtener_scripts_desde_url(url_blogger, dominio_blogger, html_blogger),
@@ -87,6 +88,7 @@ class LinksTest(unittest.TestCase):
     def test_abrir_url_en_navegador(self):
         br = mechanize.Browser()
         links.configurar_navegador(br)
+        lista_cookies = links.obtener_cookies_validas('DXGlobalization_lang=en;DXGlobalization_locale=en-US;DXGlobalization_currency=ARS')
         
         self.assertFalse(links.abrir_url_en_navegador(br, 'https://sitioquenoesasfasdasda.org'))
 
@@ -94,15 +96,22 @@ class LinksTest(unittest.TestCase):
 
         self.assertTrue(links.abrir_url_en_navegador(br, 'https://cart.dx.com/')) 
 
-        self.assertTrue(links.abrir_url_en_navegador(br, 'https://cart.dx.com/', 'DXGlobalization_lang=en;DXGlobalization_locale=en-US;DXGlobalization_currency=ARS'))
+        self.assertTrue(links.abrir_url_en_navegador(br, 'https://cart.dx.com/', lista_cookies))
 
     def test_validar_formato_cookies(self):
 
-        self.assertTrue(links.validar_formato_cookies('DXGlobalization_lang=en;DXGlobalization_locale=en-US;DXGlobalization_currency=ARS'))
-        
-        self.assertFalse(links.validar_formato_cookies('DXGlobalization_lang=en;'))
+        lista_cookies = links.obtener_cookies_validas('DXGlobalization_lang=en;DXGlobalization_locale=en-US;DXGlobalization_currency=ARS')
 
-        self.assertFalse(links.validar_formato_cookies('DXGlobalization_lang='))
+        #self.assertEqual(dict_cokies,
+        #                 {'DXGlobalization_lang':'en', 'DXGlobalization_locale':'en-US','DXGlobalization_currency':'ARS' }    
+        #                )
+        self.assertEqual(lista_cookies,
+                         ['DXGlobalization_lang=en', 'DXGlobalization_locale=en-US','DXGlobalization_currency=ARS' ]    
+                        )
+        
+        self.assertFalse(links.obtener_cookies_validas('DXGlobalization_lang=en;'))
+
+        self.assertFalse(links.obtener_cookies_validas('DXGlobalization_lang='))
 
 if __name__ == '__main__':
     unittest.main()
