@@ -4,10 +4,11 @@
 
 ## Getting Started
 
-
+```
 git clone https://github.com/leapalazzolo/XSS.git
 cd XSS ..
 python xss.py -u http://example.com -t 2 [-c] [-d]
+```
 
 ### Prerequisites
 
@@ -45,7 +46,16 @@ python xss.py -u http://example.com -t 2 [-c] [-d]
 
 ## Running the tests
 
-Para ejecutar los tests automáticos, entrar a 
+Para ejecutar los tests automáticos (desde el directorio raíz)
+
+```
+python -m unittest test.test_links
+```
+
+```
+python -m unittest test.test_xss
+```
+
 
 ### Break down into end to end tests
 

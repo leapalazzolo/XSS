@@ -3,7 +3,7 @@
 
 import unittest
 import mechanize
-import links
+from links import links
 
 class LinksTest(unittest.TestCase):
     """Test para 'links.py'"""
@@ -29,14 +29,14 @@ class LinksTest(unittest.TestCase):
 
         url_blogger = 'https://www.blogger.com/about/?r=2'
         dominio_blogger = 'https'
-        archivo_html_blogger = open('blogger_html.txt', 'r')
+        archivo_html_blogger = open('test/blogger_html.txt', 'r')
         html_blogger = archivo_html_blogger.read()
-        archivo_scripts_blogger_1 = open('blogger_script_1.txt', 'r')
+        archivo_scripts_blogger_1 = open('test/blogger_script_1.txt', 'r')
         scripts_blogger_1 = archivo_scripts_blogger_1.read()
-        archivo_scripts_blogger_2 = open('blogger_script_2.txt', 'r')
+        archivo_scripts_blogger_2 = open('test/blogger_script_2.txt', 'r')
         scripts_blogger_2 = archivo_scripts_blogger_2.read()
         lista_scripts_blogger = [str(scripts_blogger_1), str(scripts_blogger_2)]
-        links._compilar_regex(r'(?!^//|\bhttp\b)[A-Za-z0-9_\-//]*\.\w*', #TODO test
+        links._compilar_regex(r'(?!^//|\bhttp\b)[A-Za-z0-9_\-//]*\.\w*',
                               r'(?!^//|\bhttp\b)([A-Za-z0-9_\-\/]*\/[A-Za-z0-9_\-\.\/]*)',
                               r'.*\b' + 'www.blogger.com'.replace('www.', r'\.?') + r'\b(?!\.)'
                              )
@@ -69,9 +69,9 @@ class LinksTest(unittest.TestCase):
                         )
     def test_es_url_prohibida(self):
 
-        self.assertTrue(links._es_url_prohibida('http://example.com/asd/imagen.jpg'))
+        self.assertTrue(links.es_url_prohibida('http://example.com/asd/imagen.jpg'))
         
-        self.assertFalse(links._es_url_prohibida('http://example.com/asd/noespng.html'))
+        self.assertFalse(links.es_url_prohibida('http://example.com/asd/noespng.html'))
     
     def test_es_url_valida(self):
 

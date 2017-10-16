@@ -17,7 +17,7 @@ class XssTest(unittest.TestCase):
 
         lista = ['''"\\"><imG/sRc=l oNerrOr=(prompt)() x>",''',
                  '''"<!--<iMg sRc=--><img src=x oNERror=(prompt)`` x>",''',
-                 u'''"<deTails oNToggle=confi\u0072m()>",''']
+                 u'''"<deTails oNToggle=confi\\u0072m()>",''']
 
         self.assertEqual(xss.obtener_payloads(),
                          lista
@@ -60,7 +60,7 @@ class XssTest(unittest.TestCase):
         script = """parent.frames[target].location.href = href;"""
 
         self.assertEqual(xss.obtener_vulnerabilidades_dom_xss(script, RE_DOMXSS_SOURCES),
-                         ['.frames[', 'location.']
+                         ['location.']
                         )
         self.assertEqual(xss.obtener_vulnerabilidades_dom_xss(script, RE_DOMXSS_SINKS),
                          ['href =']

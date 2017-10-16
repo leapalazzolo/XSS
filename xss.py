@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
 import threading
-import time
-import codecs
 import urllib
 import argparse
 import urlparse
@@ -15,16 +12,18 @@ import httplib
 import Queue
 import re
 import hashlib
-import links
 import mechanize
-import bdd
+from links import links
+from bdd import bdd
 
 logging.config.fileConfig('log.ini')
 LOGGER = logging.getLogger('root')
 LOCK = threading.Lock()
-RE_DOMXSS_SOURCES = re.compile('(location\s*[\[.])|([.\[]\s*["\']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)')
-RE_DOMXSS_SINKS = re.compile('((src|href|data|location|code|value|action)\s*["\'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["\'\]]*\s*\()')
-
+LOCK_BDD = threading.Lock()
+#Fuente REGEX: https://github.com/wisec/domxsswiki/wiki/Finding-DOMXSS
+RE_DOMXSS_SOURCES = re.compile(r'(location\s*[\[.])|([.\[]\s*["\']?\s*(arguments|dialogArguments|innerHTML|write(ln)?|open(Dialog)?|showModalDialog|cookie|URL|documentURI|baseURI|referrer|name|opener|parent|top|content|self|frames)\W)|(localStorage|sessionStorage|Database)')
+RE_DOMXSS_SINKS = re.compile(r'((src|href|data|location|code|value|action)\s*["\'\]]*\s*\+?\s*=)|((replace|assign|navigate|getResponseHeader|open(Dialog)?|showModalDialog|eval|evaluate|execCommand|execScript|setTimeout|setInterval)\s*["\'\]]*\s*\()')
+RE_DOMXSS_SINKS_JQUERY = re.compile(r'/after\(|\.append\(|\.before\(|\.html\(|\.prepend\(|\.replaceWith\(|\.wrap\(|\.wrapAll\(|\$\(|\.globalEval\(|\.add\(|jQUery\(|\$\(|\.parseHTML\(/')
 COLA_SCRIPTS = Queue.Queue()
 
 def script_analizado_previamente(script):
@@ -43,7 +42,7 @@ def script_analizado_previamente(script):
             else:
                 COLA_SCRIPTS.put(md5_)
     except UnicodeEncodeError:
-        LOGGER.warning(u'Error al tratar de revisar si script ya había sido analizado previamente. Se analizará a continuación. \n')
+        LOGGER.debug(u'Error al tratar de revisar si script ya había sido analizado previamente. \n')
     finally:
         return encontrado
 
@@ -65,25 +64,38 @@ class Worker(threading.Thread):
         Busca vulnerabilidades XSS en la URL y sus componenetes mientras haya URLs pendientes.
         '''
         while not self.cola_links.empty():
+            vuln_dom, vuln_url, vuln_reflected = None, None, None
             link = self.cola_links.get(timeout=3)
             LOGGER.info(u'Empieza el análisis con la URL: %s\n', link.url)
             if self.analisis_reflected:
                 LOGGER.info(u'Empieza el análisis de XSS Reflected en la URL: %s \n', link.url)
                 vuln_reflected = buscar_vulnerabilidad_xss(link, self.lista_cookies, self.lista_payloads)
-                if vuln_reflected:
-                    for k in vuln_reflected:
-                        self.db.insertar_vulnerabilidad_reflected(link.url, "Reflected", "Entrada", k, vuln_reflected[k])
                 LOGGER.info(u'Fin del análisis de XSS Reflected en la URL: %s \n', link.url)
+                if vuln_reflected:
+                    with LOCK_BDD:
+                        for k in vuln_reflected:
+                            self.db.insertar_vulnerabilidad_reflected(link.url, k, vuln_reflected[k])
             if self.analsis_dom:
                 if link.parametros:
                     LOGGER.info(u'Empieza el análisis de parametros en la misma URL: %s \n', link.url)    
-                    inyectar_payload_en_url(link.url, link.parametros, self.lista_payloads)
+                    vuln_url = buscar_vulnerabilidad_xss_en_url(link.url, link.parametros, self.lista_payloads)
                     LOGGER.info(u'Fin del análisis de parámetros de la URL: %s \n', link.url)
+                    if vuln_url:
+                        with LOCK_BDD:
+                            for k in vuln_url:
+                                self.db.insertar_vulnerabilidad_reflected_url(link.url, k, vuln_url[k])
                 if link.scripts:
                     LOGGER.info(u'Empieza el análsis pasivo DOM Based XSS en la URL: %s \n', link.url)
-                    buscar_dom_xss(link.scripts) #TODO ver duplicados
+                    for script in link.scripts:
+                        vuln_dom = buscar_vulnerabilidades_dom_xss(script)
+                        if vuln_dom:
+                            with LOCK_BDD:
+                                for linea in vuln_dom:
+                                    for valor in vuln_dom[linea]:
+                                        self.db.insertar_vulnerabilidad_dom(link.url, valor, script, linea)
                     LOGGER.info(u'Fin del análsis pasivo DOM Based XSS en la URL: %s \n', link.url)
             LOGGER.info(u'Fin del análisis de la URL: %s \n', link.url)
+            
 
 def obtener_payloads():
     u'''
@@ -93,14 +105,14 @@ def obtener_payloads():
     lista_payloads = []
     try:
         with open('payloads.txt', 'r') as archivo_payloads:
-            for linea in archivo_payloads.readlines():
+            for linea in archivo_payloads.read().splitlines():
                 lista_payloads.append(linea)
-    except Exception as error:
+    except IOError as error:
         LOGGER.critical('Error al cargar las payloads: %s', error)
     finally:
         return lista_payloads
 
-def obtener_vulnerabilidades_dom_xss(linea, regex, tipo_regex):
+def obtener_vulnerabilidades_dom_xss(linea, regex):
     u'''
     Devuelve la lista de vulnerabilidades del tipo DOM Based encontradas
     según la regex pasada (análisis pasivo de SINKS o SOURCES) junto con su posición
@@ -113,30 +125,30 @@ def obtener_vulnerabilidades_dom_xss(linea, regex, tipo_regex):
             posicion = str(patron.span())
             if grupo is not None and posicion not in lista_posiciones: #Para evitar multiples ocurrencias de la regex sobre lo mismo
                 lista_posiciones.append(posicion)
-                lista_vulnerabilidades.append(tipo_regex + ' encontrado' + posicion + ': ' +  grupo)
-                LOGGER.debug('Posible vulnerabilidad DOM Based: %s.\n', grupo)
+                lista_vulnerabilidades.append(str(grupo))
+                LOGGER.debug('Posible vulnerabilidad DOM Based: %s %s.\n', grupo, posicion)
     return lista_vulnerabilidades
 
-def buscar_dom_xss(scripts):
+def buscar_vulnerabilidades_dom_xss(script):
     u'''
     Devuelve un diccionario con las posibles "vulnerabilidades" DOM Based XSS encontradas en cada script
     a través de una análisis estático con su número de línea, su posición de inicio y la de fin. 
     '''
     dict_dom_xss = dict()
-    for script in scripts:
-        if script_analizado_previamente(script):
-            LOGGER.debug('Existe un script analizado previamente en otra URL.\n')
-            continue
-        nro_linea = 0
-        lista_dom_xss = list()
-        for linea in script.split('\n'):
-            nro_linea += 1
-            lista_dom_xss = obtener_vulnerabilidades_dom_xss(linea, RE_DOMXSS_SOURCES, 'Source')
-            lista_dom_xss += obtener_vulnerabilidades_dom_xss(linea, RE_DOMXSS_SINKS, 'Sink')
-            if lista_dom_xss:
-                dict_dom_xss[nro_linea] = lista_dom_xss
-                LOGGER.info('Posible vulnerabilidad DOM Based en la URL.\n')
-    return dict_dom_xss #TODO en vez de devolver, grabar en la BDD con 1 tab
+    #for script in scripts:
+    if script_analizado_previamente(script):
+        LOGGER.debug('Existe un script analizado previamente en otra URL.\n')
+        return dict_dom_xss
+    nro_linea = 0
+    for linea in script.split('\n'):
+        nro_linea += 1
+        lista_dom_xss = obtener_vulnerabilidades_dom_xss(linea, RE_DOMXSS_SOURCES)
+        lista_dom_xss += obtener_vulnerabilidades_dom_xss(linea, RE_DOMXSS_SINKS)
+        lista_dom_xss += obtener_vulnerabilidades_dom_xss(linea, RE_DOMXSS_SINKS_JQUERY)
+        if lista_dom_xss:
+            dict_dom_xss[nro_linea] = lista_dom_xss
+            LOGGER.info('Posible vulnerabilidad DOM Based en la URL.\n')
+    return dict_dom_xss
 
 def detectar_xss_reflejado(br, payload):
     u'''
@@ -145,7 +157,7 @@ def detectar_xss_reflejado(br, payload):
     try:
         return payload in br.response().read()
     except httplib.IncompleteRead as error:
-        LOGGER.critical('Error al obtener respuesta de la URL. Error: %s', error)
+        LOGGER.debug('Error al obtener respuesta de la URL. Error: %s', error)
         return False
 
 def buscar_xss_reflejado(br, payload, entrada, form):
@@ -161,49 +173,8 @@ def buscar_xss_reflejado(br, payload, entrada, form):
         br.back()
         br.select_form(nr=form)
         return encontrado
-    except Exception:
+    except (mechanize.HTTPError,mechanize.URLError) as error:
         return encontrado
-
-
-def buscar_xss_almacenado(driver, payload, entrada):
-    u'''
-    Devuelve si existe una vulnerabilidad XSS STORED a partir de encontrar
-    la ejecucuión del script del payload en un navegador web sin encontrarlo
-    en el html de la respuesta.
-    '''
-    try:
-        if entrada.has_attr('id'):
-            entrada_elem = driver.find_element_by_id(entrada['id'])
-            return detectar_xss_almacenado(driver, entrada_elem, payload)
-        else:
-            if entrada.has_attr('name'):
-                entrada_elem = driver.find_element_by_name(entrada['name'])
-                return detectar_xss_almacenado(driver, entrada_elem, payload)
-    except (NoSuchElementException, KeyError) as error:
-        LOGGER.critical('Error al procesar: %s', error)
-        return None
-    except TypeError as error:
-        LOGGER.critical('Error al procesar el elemento: %s', entrada)
-        return None
-    
-
-def detectar_xss_almacenado(driver, parametro, payload):
-    u'''
-    Devuelve si encuentra la ejecucuión del script del payload en un navegador web.
-    '''
-    parametro.send_keys(payload)
-    parametro.submit()
-    try:
-        WebDriverWait(driver, 3).until(EC.alert_is_present(),
-                                    'Timed out waiting for PA creation ' +
-                                    'confirmation popup to appear.')
-        driver.switch_to.alert.accept()
-        return True
-    except (NoAlertPresentException, TimeoutException) as error:
-        return False
-    except Exception:
-        LOGGER.critical('Error en el navegador: %s', error)
-        return False
 
 def inyectar_payload_en_entrada(br, payload, entrada):
     '''
@@ -222,7 +193,7 @@ def inyectar_payload_en_entrada(br, payload, entrada):
         LOGGER.debug('Error al intentar explotar : %s.\nError: %s.', entrada, error)
         raise error
 
-def inyectar_payload_en_url(url_, parametros, lista_payloads):
+def buscar_vulnerabilidad_xss_en_url(url_, parametros, lista_payloads):
     u'''
     Por cada uno de los parámetros encontrados en la URL, los empieza a reemplazar de a uno
     por cada una de los payloads. Realiza una petición con la nueva URL y revisa si se
@@ -230,19 +201,27 @@ def inyectar_payload_en_url(url_, parametros, lista_payloads):
     '''
     br = mechanize.Browser()
     links.configurar_navegador(br)
+    parametros_y_payloads = dict()
     url_parseado = list(urlparse.urlparse(url_))
-    for indice_parametro, valores in parametros.items():
-        for indice_valor, valor in enumerate(valores):
-            for payload in lista_payloads:
+    for indice_parametro, parametro in parametros.items():
+        encontrado = False
+        for indice_valor, valor in enumerate(parametro):
+            p = 0
+            while p < len(lista_payloads) and not encontrado:
+                payload = lista_payloads[p]
                 nuevos_valores = dict(parametros)
-                nuevos_valores[indice_parametro][indice_valor] = valor + payload #urllib.quote_plus(payload)
+                nuevos_valores[indice_parametro][indice_valor] = valor + payload
                 url_parseado[4] = urllib.urlencode(nuevos_valores, doseq=True)
                 nueva_url = urlparse.urlunparse(url_parseado)
                 if links.abrir_url_en_navegador(br, nueva_url):
                     if detectar_xss_reflejado(br, payload):
+                        parametros_y_payloads[str(indice_parametro)] = payload #TODO bug aca
+                        encontrado = True
                         LOGGER.info(u'VULNERABLE!!! DOM Based XSS en parámetros URL.\n')
-                        return True
-    return False
+                p += 1
+            if encontrado:
+                break   #Que la historia me juzgue
+    return parametros_y_payloads
 
 def buscar_vulnerabilidad_xss(objeto_link, lista_cookies, lista_payloads):
     '''
@@ -254,19 +233,6 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_cookies, lista_payloads):
         LOGGER.critical('Error al abrir la URL: %s', objeto_link.url)
         return None
     entrada_y_payload = dict()
-    '''
-    try:
-        driver = webdriver.Firefox()
-        driver.get(objeto_link.url)
-        if dict_cokies is not None:
-            #dict_cokies = links.validar_formato_cookies(cookies)
-            cookies = driver.get_cookies()
-            driver.delete_all_cookies()
-            print "cookies", dict_cokies 
-            driver.add_cookie(dict_cokies)
-    except selenium.common.exceptions.WebDriverException as error:
-        LOGGER.critical('Error al carcar el webdriver. Error: %s', error)
-    '''
     try:
         forms_y_entradas = objeto_link.entradas
         for form in forms_y_entradas:
@@ -283,18 +249,6 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_cookies, lista_payloads):
                         entrada_y_payload[str(entrada)] = payload
                         LOGGER.info('VULNERABLE!! XSS Reflected:\nEntrada: %s \nPayload: %s', entrada, payload)
 
-
-                    '''
-                    else:
-                        #br.back()
-                        #br.select_form(nr=form)
-                        driver.get(objeto_link.url)
-                        resultado = buscar_xss_almacenado(driver, payload, entrada)
-                        if resultado:
-                            LOGGER.info('VULNERABLE!! XSS Stored: Entrada: %s Payload: %s', entrada, payload)
-                            encontrado = True'''
-        '''
-        driver.quit()'''
     except Exception as error:
         LOGGER.critical(u'Error al procesar URL: %s.\nError: %s\n', objeto_link.url, error)
     finally:
@@ -323,7 +277,7 @@ def main():
                         help='Las cookies para la URL ingresada.',
                         action='store',
                         dest='cookies'
-                        )#TODO testear cookies
+                        )
     parser.add_argument('-d',
                         '--dom',
                         help=u'Análisis estatico DOM Based XSS de los scripts encontrados en la URL.',
@@ -387,7 +341,6 @@ def main():
     for i in range(args.threads):
         worker = Worker(cola_links, cookies_validas, lista_payloads, db, args.reflected, args.dom)
         threads.append(worker)
-        #cworker.setDaemon(True)
         worker.start()
     for t in threads:
         t.join()

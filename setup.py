@@ -1,29 +1,31 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
 import setuptools
 
-#with open('README.rst') as f:
-#    readme = f.read()
+with open('README.md') as f:
+    leeme = f.read()
 
-#with open('LICENSE') as f:
-#    license = f.read()
+with open('LICENSE.md') as f:
+    licencia = f.read()
+
+with open('requirements.txt') as f:
+    requerimientos = f.read()
 
 os.environ['STATICBUILD'] = 'true'
-REQUERIMIENTOS = ['requests',
-                  'BeautifulSoup4',
-                  'lxml' # Requiere Visual C++ 2015 Build Tools (Falta revisar) y import os + os.environ['STATICBUILD'] = 'true'
-                  ]
+#REQUERIMIENTOS = ['BeautifulSoup4',
+#                  'lxml' # Requiere Visual C++ 2015 Build Tools (Falta revisar) y import os + os.environ['STATICBUILD'] = 'true'
+#                  ]
 
 setuptools.setup(
-    name='Challenge',
-    version='0.1.dev0',
-    #packages=['towelstuff',],
-    license='GPLv3',
-    url='http://github.com/leapalazzolo/Challenge',
+    name='XSS',
+    version='1.0',
+    description='Detector de vulnerabilidaes XSS',
+    long_description=leeme,
+    url='http://github.com/leapalazzolo/XSS',
     author='Leandro Palazzolo',
     author_email='leapalazzolo@gmail.com',
-    #long_description=open('README.txt').read(),
-    #packages=find_packages(exclude=('tests', 'docs')),
-    install_requires=REQUERIMIENTOS,
-    #test_requires=REQUERIMIENTOS
+    license=licencia,
+    install_requires=requerimientos,
 )
