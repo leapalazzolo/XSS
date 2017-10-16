@@ -1,16 +1,5 @@
-La Rule se une al Filter con el ID
-<StateBaseOptionRule fieldGuid="2f628cb6-584f-41db-bb6a-ce00ceced862">
-	<StateBaseOptionRuleContainer
-		<FilterCriteria> => Condicion
-		<StateBaseOptionRule> Grupo 
-Se une al ManualSelectedUserGroup a través de fieldGuid
-En este, van sus grupos asignados y permisos
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-
-d2478a10
-Permiso_Aprobación
-Automátic:
-Nombre las reglas con sus grupos
-Donde estan los grupos por default????
-Parece que acá =>_DefaultRule		
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
