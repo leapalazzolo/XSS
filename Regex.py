@@ -1,2 +1,0 @@
-class Regex(object):
-    
