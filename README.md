@@ -10,7 +10,6 @@ Python 2.7
 ```
 Mechanize
 BeautifulSoup
-lxml
 ```
 
 ### Instalación
@@ -24,7 +23,7 @@ git clone https://github.com/leapalazzolo/XSS.git
 Navegar hasta el directorio
 
 ```
-cd XSS
+cd xss
 ```
 
 Instalar lo requerido

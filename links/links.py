@@ -89,7 +89,7 @@ def obtener_scripts_desde_url(url_, esquema, html):
     en el mismo html o los que son referenciados a traves de un archivo que pertenece
     al dominio o un subdominio.
     '''
-    html_parseado = BeautifulSoup(html, 'lxml')
+    html_parseado = BeautifulSoup(html, 'html.parser')
     scripts = set()
     for script in html_parseado.findAll('script'):
         texto = script.getText()
@@ -134,7 +134,7 @@ def obtener_entradas_desde_url(html):
     '''
     nro_form = 0
     forms_y_parametros = dict()
-    html_parseado = BeautifulSoup(html, 'lxml')
+    html_parseado = BeautifulSoup(html, 'html.parser')
     listform = ['text', 'password', 'email', 'url', 'search']
     for form in html_parseado.findAll('form'):
         lista_parametros = form.findAll('input', {'type':''})
