@@ -1,6 +1,6 @@
 # Challenge XSS
 
-'Challenge XSS' es un script hecho en Python que, a partir de una URL dada, se encarga de obtener todos los links a los que hace referencia siempre y cuando estos pertenezcan al dominio o algún subdominio de ella. Una vez obtenidos, los analizará en busca de vulnerabilidades XSS, las cuales serán guardadas en una base de datos local y única por cada ejecución.
+'Challenge XSS' es un script hecho en Python que, a partir de una URL dada, se encarga de obtener todos los links a los que hace referencia siempre y cuando estos pertenezcan al dominio o algún subdominio de ella. Una vez obtenidos, los analizará en forma paralela (según la cantidad de threads ingresada) cargando para cada una de sus entradas (inputs) que se encuentren en su HTML una serie de payloads previamente seleccionados. Si en la respuesta se encuentra alguno que fue ingresado, se considera que existe una vulnerabilidad. Además, se analizarán aquellos parámetros encontrados en la URL para realizar lo mencionado anteriormente. Por último, existe la posibilidad de realizar un escaneo pasivo sobre los scripts encontrados en los links con el fin de enontrrar "potenciales" vulnerabilidades.  
 
 ## Getting Started
 
@@ -76,11 +76,11 @@ python -m unittest test.test_xss
 * Escaneo de vulnerabilidades XSS Reflected
 * Escaneo de vulnerabilidades en parámetros de la URL
 
-### Mejoras
+### Futuro
 
-* Uso de threads para obtener links: Actualmente el uso de threads es para el escaneo de vulnerabilidades aunque podría ampliarse a la obtención de links .
-* "Escaneo" de vulnerabilidades XSS Stored: En la primer versión final del script se descartó la búsqueda de este tipo debido a que su implementación previamente realizada mediante un webdriver (selenium) ralentizaba significativamente los tiempos de ejecución y aumentaba su consumo de recursos sin dar mejores resultados. Su funcionamiento era, a través de un navegador, detectar mensajes de alerta inmediatamente después de ser ingresados a través del script (debido a las restricciones con JavaScript sobre el navegador, pocas "inyecciones" llegaban a destino).
-* Multithread en SQLite: Actualmente el acceso a la base de datos es serializado mediante una conexión compartida entre threads y el uso de semáforos, por lo que se podría dar una mejor solución mediante el uso de un sistema productor-consumidor.
+* Uso de threads para obtener links: Actualmente el uso de threads es unicamente para el escaneo de vulnerabilidades aunque podría ampliarse a la obtención de links.
+* "Escaneo" de vulnerabilidades XSS Stored: En la primer versión final del script se descartó la búsqueda de este tipo debido a que su implementación previamente realizada mediante un webdriver (selenium) ralentizaba significativamente los tiempos de ejecución y aumentaba su consumo de recursos sin dar mejores resultados. Su funcionamiento era, a través de un navegador, detectar mensajes de alerta inmediatamente después de ser ingresados a través del script. Claramente, no era muy efectivo.
+* Multithread en SQLite: Actualmente el acceso a la base de datos es serializado mediante una conexión compartida entre threads y el uso de semáforos, por lo que se podría dar una mejor solución mediante el uso de un sistema productor-consumidor o de alguna otra forma.
 
 
 
