@@ -4,15 +4,16 @@
 
 ## Getting Started
 
-### Prerequisites
+### Requisitos
 
+Python 2.7
 ```
 Mechanize
 BeautifulSoup
 lxml
 ```
 
-### Installing
+### Instalación
 
 Descargar el proyecto
 
@@ -47,17 +48,17 @@ optional arguments:
 
 required named arguments:
   -u http://example.com, --url http://example.com
-                        La URL en la cual se basara el análisis.
-  -t N, --threads N     La cantidad de threads para realizar la búsqueda de
-                        vulnerabilidades.
+																		La URL en la cual se basara el análisis.
+  -t N, --threads N     												La cantidad de threads para realizar la búsqueda de
+																		vulnerabilidades.
 
 En caso de que no se especifique el tipo de análisis, se hará por defecto
 solamente del tipo XSS Reflected.
 ```
 
-## Running the tests
+## Test
 
-Para ejecutar los tests automáticos (desde el directorio raíz)
+Para ejecutar los tests automáticos, desde el directorio raíz:
 
 ```
 python -m unittest test.test_links
@@ -67,27 +68,33 @@ python -m unittest test.test_links
 python -m unittest test.test_xss
 ```
 
-## Deployment
+## Desarrollo
 
-### Developed
+### Desarrollado
+
+* Obtención de links pertenecientes al dominio de URL junto con sus datos relevantes
+* Escaneo estático de vulnerabilidades DOM Based XSS
+* Escaneo de vulnerabilidades XSS Reflected
+* Escaneo de vulnerabilidades en parámetros de la URL
+
+### Mejoras
+
+* Uso de threads para obtener links: Actualmente el uso de threads es para el escaneo de vulnerabilidades aunque podría ampliarse a la obtención de links .
+* "Escaneo" de vulnerabilidades XSS Stored: En la primer versión final del script se descartó la búsqueda de este tipo debido a que su implementación previamente realizada mediante un webdriver (selenium) ralentizaba significativamente los tiempos de ejecución y aumentaba su consumo de recursos sin dar mejores resultados. Su funcionamiento era, a través de un navegador, detectar mensajes de alerta inmediatamente después de ser ingresados a través del script (debido a las restricciones con JavaScript sobre el navegador, pocas "inyecciones" llegaban a destino).
+* Multithread en SQLite: Actualmente el acceso a la base de datos es serializado mediante una conexión compartida entre threads y el uso de semáforos, por lo que se podría dar una mejor solución mediante el uso de un sistema productor-consumidor.
 
 
-### Future
 
-
-Add additional notes about how to deploy this on a live system
-
-
-## Authors
+## Autor
 
 * **Leandro Palazzolo** - (leapalazzolo@gmail.com)
 
 
-## License
+## Licencia
 
 Este proyecto se encuentra licenciado bajo MIT License - [LICENSE.md](LICENSE.md).
 
-## Acknowledgments
+## Conclusión final
 
 Realizar este proyecto ha sido:
 * totalmente provechoso debido a la incorporación de nuevos conceptos y consolidación de antiguos.
