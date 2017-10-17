@@ -329,7 +329,7 @@ def main():
         LOGGER.critical('Revise el archivo payloads.txt.')
         sys.exit(1)
     try:
-        db = bdd.BDD('bdd.db', lista_payloads)
+        db = bdd.BDD('bdd/bdd.db', lista_payloads)
     except:
         LOGGER.critical('Error con la BDD.')
         sys.exit(1)
