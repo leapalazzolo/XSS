@@ -61,7 +61,7 @@ class LinksTest(unittest.TestCase):
                         )
     def test_obtener_entradas_desde_url(self):
         url_unlam = 'http://alumno2.unlam.edu.ar/index.jsp?pageLand=registrarse'
-        html_unlam = open('unlam_html.txt', 'r').read()
+        html_unlam = open('test/unlam_html.txt', 'r').read()
         parametros = links.obtener_entradas_desde_url(html_unlam)
         parametro = parametros[0][0]['id']
         self.assertEqual(parametro,
