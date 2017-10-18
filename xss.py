@@ -173,7 +173,7 @@ def buscar_xss_reflejado(br, payload, entrada, form):
         br.back()
         br.select_form(nr=form)
         return encontrado
-    except (mechanize.HTTPError,mechanize.URLError) as error:
+    except mechanize.HTTPError,mechanize.URLError:
         return encontrado
 
 def inyectar_payload_en_entrada(br, payload, entrada):
@@ -183,11 +183,11 @@ def inyectar_payload_en_entrada(br, payload, entrada):
     '''
     try:
         if entrada.has_attr('name'):
-            br.form[entrada['name']] = payload #TODO ver lo del name e id
+            br.form[entrada['name']] = payload
             br.submit()
         else:
             if entrada.has_attr('id'):
-                br.form[entrada['id']] = payload #TODO ver lo del name e id
+                br.form[entrada['id']] = payload
                 br.submit()
     except (ValueError, urllib2.URLError, TypeError) as error:
         LOGGER.debug('Error al intentar explotar : %s.\nError: %s.', entrada, error)
@@ -215,7 +215,7 @@ def buscar_vulnerabilidad_xss_en_url(url_, parametros, lista_payloads):
                 nueva_url = urlparse.urlunparse(url_parseado)
                 if links.abrir_url_en_navegador(br, nueva_url):
                     if detectar_xss_reflejado(br, payload):
-                        parametros_y_payloads[str(indice_parametro)] = payload #TODO bug aca
+                        parametros_y_payloads[str(indice_parametro)] = payload
                         encontrado = True
                         LOGGER.info(u'VULNERABLE!!! DOM Based XSS en parámetros URL.\n')
                 p += 1
@@ -227,7 +227,7 @@ def buscar_vulnerabilidad_xss(objeto_link, lista_cookies, lista_payloads):
     '''
     Devuelve las vulnerabilidades encontradas en una URL.
     '''
-    br = mechanize.Browser()#factory=mechanize.RobustFactory())  #TODO factory=mechanize.RobustFactory()
+    br = mechanize.Browser()
     links.configurar_navegador(br)
     if not links.abrir_url_en_navegador(br, objeto_link.url, lista_cookies):
         LOGGER.critical('Error al abrir la URL: %s', objeto_link.url)
@@ -330,7 +330,7 @@ def main():
         sys.exit(1)
     try:
         db = bdd.BDD('bdd/bdd.db', lista_payloads)
-    except:
+    except Exception:
         LOGGER.critical('Error con la BDD.')
         sys.exit(1)
     LOGGER.info('Empieza el programa!\n\n')

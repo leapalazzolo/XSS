@@ -4,8 +4,9 @@
 import os
 import sqlite3
 import logging
+import logging.config
 
-logging.config.fileConfig('log.ini')
+logging.config.fileConfig(os.path.join(os.path.split(os.path.dirname(__file__))[0], 'log.ini'))
 LOGGER = logging.getLogger('bdd')
 
 TIPO_XSS = ['Reflected', 'DOM Based']
@@ -19,7 +20,7 @@ class BDD(object):
     def __init__(self, ruta_archivo, lista_payload):
         try:
             os.remove(ruta_archivo)
-            LOGGER.debug('BDD anterior eliminada.')
+            LOGGER.info('BDD anterior eliminada.')
         except OSError:
             pass
         conn = sqlite3.connect(ruta_archivo, check_same_thread=False)
@@ -30,7 +31,7 @@ class BDD(object):
         try:
             self.conn.text_factory = str
             self.__create_table()
-            LOGGER.debug('Tablas creadas en BDD.')
+            LOGGER.info('Tablas creadas en BDD.')
             for xss in TIPO_XSS:
                 self.__insertar_en_tabla_xss(xss)
             for elemento in TIPO_ELEMENTO:
@@ -188,7 +189,4 @@ class BDD(object):
             raise
         finally:
             cur.close()
-            
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
+

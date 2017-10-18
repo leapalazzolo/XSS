@@ -2,17 +2,18 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
 import re
 import httplib
 import urllib2
 import logging
+import logging.config
 import urlparse
 import Queue
 import mechanize
 from bs4 import BeautifulSoup
-from logging import config
 
-logging.config.fileConfig('log.ini')
+logging.config.fileConfig(os.path.join(os.path.split(os.path.dirname(__file__))[0], 'log.ini'))
 LOGGER = logging.getLogger('links')
 REGEX_ARCHIVO, REGEX_CARPETA, REGEX_DOMINIO_O_SUBDOMINIO = None, None, None
 BLACKLIST = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.gif', '.svg',
